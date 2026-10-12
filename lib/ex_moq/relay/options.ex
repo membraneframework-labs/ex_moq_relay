@@ -5,6 +5,7 @@ defmodule ExMoQ.Relay.Options do
 
   alias ExMoQ.Relay
 
+  # moq-relay tracing levels
   @log_levels ["error", "warn", "info", "debug", "trace"]
 
   @type t :: %__MODULE__{
@@ -38,8 +39,8 @@ defmodule ExMoQ.Relay.Options do
   ]
   defstruct @enforce_keys
 
-  @spec log_levels() :: [String.t()]
-  def log_levels(), do: @log_levels
+  @spec level_index(String.t()) :: non_neg_integer() | nil
+  def level_index(level), do: Enum.find_index(@log_levels, &(&1 == level))
 
   @spec validate(Relay.t()) :: {:ok, t()} | {:error, String.t()}
   def validate(%Relay{} = options) do
