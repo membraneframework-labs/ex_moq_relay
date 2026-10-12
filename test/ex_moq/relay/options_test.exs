@@ -57,7 +57,7 @@ defmodule ExMoQ.Relay.OptionsTest do
                  quic: nil,
                  tcp: 1,
                  internal: nil,
-                 log_level: "info",
+                 log_level: :info,
                  auth: ["anon/**", "demo/**"],
                  args: ["--stats-enabled"]
                )

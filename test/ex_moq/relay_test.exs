@@ -80,7 +80,7 @@ defmodule ExMoQ.RelayTest do
         if previous, do: System.put_env("RUST_LOG", previous), else: System.delete_env("RUST_LOG")
       end)
 
-      options = %Relay{quic: nil, tcp: :auto, log_level: "info", output: nil}
+      options = %Relay{quic: nil, tcp: :auto, log_level: :info, output: nil}
       relay = start_supervised!({Relay, options})
       assert %Info{tcp_url: "tcp://127.0.0.1:" <> _port} = Relay.info(relay)
     end
@@ -93,7 +93,7 @@ defmodule ExMoQ.RelayTest do
           quic: nil,
           tcp: :auto,
           web: {:auto, ip: {0, 0, 0, 0}},
-          log_level: "info",
+          log_level: :info,
           output: &send(me, {:line, &1})
         }
 

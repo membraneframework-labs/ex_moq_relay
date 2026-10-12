@@ -93,11 +93,9 @@ defmodule ExMoQ.Relay do
           | nil
 
   @typedoc """
-  The relay's log level: `"error"`, `"warn"` (default), `"info"`, `"debug"` or
-  `"trace"`. It replaces a `RUST_LOG` of the environment, which the relay does
-  not inherit.
+  The relay's log level (default `:warn`).
   """
-  @type log_level :: String.t()
+  @type log_level :: :error | :warn | :info | :debug | :trace
 
   @typedoc "Extra command-line arguments (default `[]`)."
   @type args :: [String.t()]
@@ -137,7 +135,7 @@ defmodule ExMoQ.Relay do
             web: nil,
             internal: nil,
             auth: "**",
-            log_level: "warn",
+            log_level: :warn,
             args: [],
             output: :info,
             ready_timeout: 15_000,

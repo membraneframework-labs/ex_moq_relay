@@ -1,8 +1,8 @@
-defmodule ExMoQ.Test.RelayTest do
+defmodule ExMoQ.Testing.RelayTest do
   use ExUnit.Case
 
   alias ExMoQ.Relay.Info
-  alias ExMoQ.Test.Relay
+  alias ExMoQ.Testing.Relay
 
   @tag :integration
   test "runs a TCP relay for the test" do

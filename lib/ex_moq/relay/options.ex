@@ -6,7 +6,7 @@ defmodule ExMoQ.Relay.Options do
   alias ExMoQ.Relay
 
   # moq-relay tracing levels
-  @log_levels ["error", "warn", "info", "debug", "trace"]
+  @log_levels [:error, :warn, :info, :debug, :trace]
 
   @type t :: %__MODULE__{
           binary: Path.t(),
@@ -39,8 +39,12 @@ defmodule ExMoQ.Relay.Options do
   ]
   defstruct @enforce_keys
 
-  @spec level_index(String.t()) :: non_neg_integer() | nil
-  def level_index(level), do: Enum.find_index(@log_levels, &(&1 == level))
+  @doc "Where a level ranks, from `:error` up; a string names one as a log line does."
+  @spec level_index(Relay.log_level() | String.t()) :: non_neg_integer() | nil
+  def level_index(level) when is_atom(level), do: Enum.find_index(@log_levels, &(&1 == level))
+
+  def level_index(level) when is_binary(level),
+    do: Enum.find_index(@log_levels, &(Atom.to_string(&1) == level))
 
   @spec validate(Relay.t()) :: {:ok, t()} | {:error, String.t()}
   def validate(%Relay{} = options) do
@@ -99,7 +103,7 @@ defmodule ExMoQ.Relay.Options do
     end
   end
 
-  @spec log_level(term()) :: {:ok, String.t()} | {:error, String.t()}
+  @spec log_level(term()) :: {:ok, Relay.log_level()} | {:error, String.t()}
   defp log_level(level) when level in @log_levels, do: {:ok, level}
 
   defp log_level(other) do

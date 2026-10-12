@@ -19,7 +19,7 @@ defmodule ExMoQ.Relay.Args do
       end
 
     Enum.concat([
-      ["--log-level", options.log_level],
+      ["--log-level", Atom.to_string(options.log_level)],
       listen_flag(options, "--listen", :quic),
       listen_flag(options, "--listen-tcp-bind", :tcp),
       listen_flag(options, "--web-http-listen", :web),

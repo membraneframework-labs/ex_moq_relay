@@ -41,7 +41,7 @@ defmodule ExMoQ.Relay.MixProject do
   end
 
   defp dialyzer do
-    # `ExMoQ.Test.Relay` calls into ExUnit.
+    # `ExMoQ.Testing.Relay` calls into ExUnit.
     opts = [flags: [:error_handling], plt_add_apps: [:ex_unit]]
 
     if System.get_env("CI") == "true" do
