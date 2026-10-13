@@ -20,7 +20,7 @@ defmodule ExMoQ.Relay do
   alias ExMoQ.Relay.{Args, Info, Options, Startup}
 
   @typedoc false
-  @type patterns :: String.t() | [String.t()]
+  @type patterns :: String.t() | [String.t(), ...]
 
   @typedoc false
   @type listener_opts :: [{:ip, :inet.ip_address()}]
@@ -76,7 +76,7 @@ defmodule ExMoQ.Relay do
   """
   @type auth ::
           patterns()
-          | [subscribe: patterns(), publish: patterns()]
+          | [{:subscribe, patterns()} | {:publish, patterns()}, ...]
           | {:url, String.t()}
           | nil
 

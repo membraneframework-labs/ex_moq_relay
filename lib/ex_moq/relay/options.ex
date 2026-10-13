@@ -96,13 +96,16 @@ defmodule ExMoQ.Relay.Options do
   end
 
   @spec auth(term()) :: {:ok, Relay.auth()} | {:error, String.t()}
+  defp auth(nil), do: {:ok, nil}
   defp auth({:url, url} = auth) when is_binary(url) and url != "", do: {:ok, auth}
 
   defp auth({:url, other}) do
     {:error, ":auth {:url, url} needs a non-empty string, got: #{inspect(other)}"}
   end
 
-  defp auth(auth) do
+  defp auth(pattern) when is_binary(pattern), do: {:ok, pattern}
+
+  defp auth(auth) when is_list(auth) do
     if Keyword.keyword?(auth) do
       case Keyword.validate(auth, [:subscribe, :publish]) do
         {:ok, auth} -> {:ok, auth}
