@@ -17,7 +17,7 @@ defmodule ExMoQ.Relay.OptionsTest do
     assert message =~ ~r/:tcp must be a port, \{port, opts\} or nil, got: :auto/
 
     assert {:error, {:validation_failed, message}} = Relay.start_link(relay!(log_level: "WARN"))
-    assert message =~ ~r/:log_level must be one of/
+    assert message =~ ~r/:log_level must be a Logger level/
 
     assert {:error, {:validation_failed, message}} = Relay.start(relay!(auth: [subscibe: "**"]))
     assert message =~ ~r/unknown keys \[:subscibe\]/

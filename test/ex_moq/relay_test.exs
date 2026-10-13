@@ -66,6 +66,17 @@ defmodule ExMoQ.RelayTest do
       assert_receive {:DOWN, ^ref, :process, ^relay, {:exit_status, 0}}, 1_000
     end
 
+    test "has invalid UTF-8 in its output replaced", %{tmp_dir: dir} do
+      binary = script!(dir, "invalid", "#!/bin/sh\nprintf 'path \\303\\n'\nexit 1\n")
+
+      log =
+        capture_log(fn ->
+          assert {:error, {:exit_status, 1}} = Relay.start(%Relay{binary: binary})
+        end)
+
+      assert log =~ "moq-relay: path \uFFFD"
+    end
+
     # `exec`, so the signal that stops a fake relay
     # reaches the process that would outlive it.
     @silent """

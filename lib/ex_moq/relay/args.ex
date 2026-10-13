@@ -17,7 +17,7 @@ defmodule ExMoQ.Relay.Args do
       end
 
     Enum.concat([
-      ["--log-level", Atom.to_string(options.log_level)],
+      ["--log-level", log_level(options.log_level)],
       listen_flag(options, "--listen", :quic),
       listen_flag(options, "--listen-tcp-bind", :tcp),
       listen_flag(options, "--web-http-listen", :web),
@@ -69,4 +69,12 @@ defmodule ExMoQ.Relay.Args do
       list -> [flag, Enum.join(list, ",")]
     end
   end
+
+  # The relay's levels are `tracing`'s; the ones `Logger` has above and between
+  # them map to the nearest more verbose one.
+  @spec log_level(Relay.log_level()) :: String.t()
+  defp log_level(level) when level in [:emergency, :alert, :critical, :error], do: "error"
+  defp log_level(:warning), do: "warn"
+  defp log_level(level) when level in [:notice, :info], do: "info"
+  defp log_level(:debug), do: "debug"
 end

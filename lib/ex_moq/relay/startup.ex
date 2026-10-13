@@ -33,7 +33,9 @@ defmodule ExMoQ.Relay.Startup do
       case options.output do
         nil -> fn _line -> :ok end
         fun when is_function(fun, 1) -> fun
-        level -> fn line -> Logger.log(level, "moq-relay: " <> line) end
+        # Replaces invalid bytes as MuonTrap's own logger would: a partial line
+        # it cuts at 256 bytes can split a character.
+        level -> fn line -> Logger.log(level, "moq-relay: " <> String.replace_invalid(line)) end
       end
 
     daemon_opts = [
@@ -60,12 +62,8 @@ defmodule ExMoQ.Relay.Startup do
           stop_daemon(daemon)
           {:error, {:not_ready, options.ready_timeout}}
 
-        # MuonTrap maps exit status 0 to :normal
-        {:exit, :normal} ->
-          {:error, {:exit_status, 0}}
-
-        {:exit, reason} ->
-          {:error, reason}
+        {:error, _exit_status} = error ->
+          error
       end
 
     :ok = :gen_udp.close(socket)
@@ -73,7 +71,7 @@ defmodule ExMoQ.Relay.Startup do
   end
 
   @spec await_ready(:gen_udp.socket(), reference(), integer()) ::
-          :ok | {:error, :not_ready} | {:exit, term()}
+          :ok | {:error, :not_ready | {:exit_status, 0}}
   defp await_ready(socket, monitor, deadline) do
     receive do
       {:udp, ^socket, _address, _port, message} ->
@@ -81,8 +79,10 @@ defmodule ExMoQ.Relay.Startup do
           do: :ok,
           else: await_ready(socket, monitor, deadline)
 
-      {:DOWN, ^monitor, :process, _daemon, reason} ->
-        {:exit, reason}
+      # MuonTrap maps exit status 0 to :normal. Any other exit ends this
+      # process through the link before its DOWN could arrive.
+      {:DOWN, ^monitor, :process, _daemon, :normal} ->
+        {:error, {:exit_status, 0}}
     after
       max(deadline - System.monotonic_time(:millisecond), 0) -> {:error, :not_ready}
     end

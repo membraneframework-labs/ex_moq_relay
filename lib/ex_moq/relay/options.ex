@@ -3,8 +3,8 @@ defmodule ExMoQ.Relay.Options do
 
   alias ExMoQ.Relay
 
-  # moq-relay tracing levels
-  @log_levels [:error, :warn, :info, :debug, :trace]
+  # `Logger.levels/0`
+  @levels [:emergency, :alert, :critical, :error, :warning, :notice, :info, :debug]
 
   @type endpoint :: :quic | :tcp | :web | :internal
   @type listener :: {:inet.port_number(), Relay.listener_opts()} | nil
@@ -78,21 +78,17 @@ defmodule ExMoQ.Relay.Options do
 
   @spec output(term()) :: {:ok, Relay.output()} | {:error, String.t()}
   defp output(output) when output == nil or is_function(output, 1), do: {:ok, output}
+  defp output(level) when level in @levels, do: {:ok, level}
 
-  defp output(level) do
-    if level in Logger.levels() do
-      {:ok, level}
-    else
-      {:error,
-       ":output must be a Logger level, a 1-arity function or nil, got: #{inspect(level)}"}
-    end
+  defp output(other) do
+    {:error, ":output must be a Logger level, a 1-arity function or nil, got: #{inspect(other)}"}
   end
 
   @spec log_level(term()) :: {:ok, Relay.log_level()} | {:error, String.t()}
-  defp log_level(level) when level in @log_levels, do: {:ok, level}
+  defp log_level(level) when level in @levels, do: {:ok, level}
 
   defp log_level(other) do
-    {:error, ":log_level must be one of #{inspect(@log_levels)}, got: #{inspect(other)}"}
+    {:error, ":log_level must be a Logger level, got: #{inspect(other)}"}
   end
 
   @spec auth(term()) :: {:ok, Relay.auth()} | {:error, String.t()}

@@ -80,10 +80,14 @@ defmodule ExMoQ.Relay do
           | {:url, String.t()}
           | nil
 
+  @typedoc "A `Logger` level."
+  @type level :: :emergency | :alert | :critical | :error | :warning | :notice | :info | :debug
+
   @typedoc """
-  The relay's log level (default `:warn`).
+  The relay's log level (default `:warning`). The relay has fewer levels:
+  `:emergency`, `:alert` and `:critical` run it at `error`, `:notice` at `info`.
   """
-  @type log_level :: :error | :warn | :info | :debug | :trace
+  @type log_level :: level()
 
   @typedoc "Extra command-line arguments (default `[]`)."
   @type args :: [String.t()]
@@ -92,7 +96,7 @@ defmodule ExMoQ.Relay do
   Where the relay's output lines go: a `Logger` level to log them at (default
   `:info`), a 1-arity function to call with each, or `nil` to drop them.
   """
-  @type output :: Logger.level() | (String.t() -> any()) | nil
+  @type output :: level() | (String.t() -> any()) | nil
 
   @typedoc "Milliseconds to wait for readiness (default `15_000`)."
   @type ready_timeout :: non_neg_integer()
@@ -123,7 +127,7 @@ defmodule ExMoQ.Relay do
             web: nil,
             internal: nil,
             auth: "**",
-            log_level: :warn,
+            log_level: :warning,
             args: [],
             output: :info,
             ready_timeout: 15_000,
@@ -237,12 +241,11 @@ defmodule ExMoQ.Relay do
   @impl true
   def handle_call(:info, _from, state), do: {:reply, state.info, state}
 
+  # MuonTrap maps exit status 0 to :normal. Any other exit ends this process
+  # through the link before its DOWN could arrive.
   @impl true
   def handle_info({:DOWN, monitor, :process, _daemon, :normal}, %{monitor: monitor} = state),
     do: {:stop, {:exit_status, 0}, %{state | daemon: nil}}
-
-  def handle_info({:DOWN, monitor, :process, _daemon, reason}, %{monitor: monitor} = state),
-    do: {:stop, reason, %{state | daemon: nil}}
 
   def handle_info(_message, state), do: {:noreply, state}
 
