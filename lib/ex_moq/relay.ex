@@ -142,16 +142,12 @@ defmodule ExMoQ.Relay do
           | {:exit_status, non_neg_integer()}
           | {:not_ready, timeout_ms :: non_neg_integer()}
 
-  @doc """
-  A child spec for the relay. Raises `ArgumentError` when options fail validation.
-  """
+  @doc "A child spec for the relay, with its `:name` (or a reference) in the id."
   @spec child_spec(t()) :: Supervisor.child_spec()
   def child_spec(%__MODULE__{} = relay) do
-    options = Options.validate!(relay)
-
     %{
-      id: {__MODULE__, options.name || make_ref()},
-      start: {__MODULE__, :start_link, [options]},
+      id: {__MODULE__, relay.name || make_ref()},
+      start: {__MODULE__, :start_link, [relay]},
       type: :worker
     }
   end
@@ -161,31 +157,22 @@ defmodule ExMoQ.Relay do
   """
   @spec start_link(t()) :: {:ok, pid()} | {:error, start_error() | {:already_started, pid()}}
   def start_link(%__MODULE__{} = relay) do
-    case Options.validate(relay) do
-      {:ok, options} -> start_link(options)
+    with {:ok, options} <- Options.validate(relay) do
+      GenServer.start_link(__MODULE__, options, name: options.name)
+    else
       {:error, reason} -> {:error, {:validation_failed, reason}}
     end
   end
-
-  @doc false
-  @spec start_link(Options.t()) ::
-          {:ok, pid()} | {:error, start_error() | {:already_started, pid()}}
-  def start_link(%Options{} = options),
-    do: GenServer.start_link(__MODULE__, options, name: options.name)
 
   @doc "Starts a relay not linked to the caller; see `start_link/1`."
   @spec start(t()) :: {:ok, pid()} | {:error, start_error() | {:already_started, pid()}}
   def start(%__MODULE__{} = relay) do
-    case Options.validate(relay) do
-      {:ok, options} -> start(options)
+    with {:ok, options} <- Options.validate(relay) do
+      GenServer.start(__MODULE__, options, name: options.name)
+    else
       {:error, reason} -> {:error, {:validation_failed, reason}}
     end
   end
-
-  @doc false
-  @spec start(Options.t()) :: {:ok, pid()} | {:error, start_error() | {:already_started, pid()}}
-  def start(%Options{} = options),
-    do: GenServer.start(__MODULE__, options, name: options.name)
 
   @doc "What the relay reports: where its listeners are reached."
   @spec info(GenServer.server()) :: Info.t()

@@ -14,9 +14,8 @@ defmodule ExMoQ.Relay.OptionsTest do
     assert {:error, {:validation_failed, message}} = Relay.start(relay!(quic: nil, web: 8080))
     assert message =~ ~r/needs a :quic or a :tcp listener/
 
-    assert_raise ArgumentError, ~r/:tcp must be a port, \{port, opts\} or nil, got: :auto/, fn ->
-      Relay.child_spec(relay!(tcp: :auto))
-    end
+    assert {:error, {:validation_failed, message}} = Relay.start(relay!(tcp: :auto))
+    assert message =~ ~r/:tcp must be a port, \{port, opts\} or nil, got: :auto/
 
     assert {:error, {:validation_failed, message}} = Relay.start_link(relay!(log_level: "WARN"))
     assert message =~ ~r/:log_level must be one of/
