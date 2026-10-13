@@ -16,14 +16,8 @@ defmodule ExMoQ.Relay.Startup do
     deadline = System.monotonic_time(:millisecond) + options.ready_timeout
 
     path =
-      Path.join(
-        System.tmp_dir!(),
-        "moq-relay-#{System.pid()}-#{System.unique_integer([:positive])}.sock"
-      )
+      Path.join(System.tmp_dir!(), "moq-relay-#{System.pid()}-#{:rand.uniform(0xFFFFFFFF)}.sock")
 
-    # A file left by a run that died while waiting;
-    # the name repeats for the same OS pid.
-    File.rm(path)
     {:ok, socket} = :gen_udp.open(0, [:local, :binary, active: true, ifaddr: {:local, path}])
 
     daemon_opts = [
@@ -50,7 +44,7 @@ defmodule ExMoQ.Relay.Startup do
           stop_daemon(daemon)
           {:error, {:not_ready, options.ready_timeout}}
 
-        # MuonTrap maps exit status 0 to `:normal`.
+        # MuonTrap maps exit status 0 to :normal
         {:exit, :normal} ->
           {:error, {:exit_status, 0}}
 

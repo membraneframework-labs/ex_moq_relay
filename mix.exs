@@ -8,7 +8,7 @@ defmodule ExMoQ.Relay.MixProject do
     [
       app: :ex_moq_relay,
       version: @version,
-      elixir: "~> 1.15",
+      elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       dialyzer: dialyzer(),

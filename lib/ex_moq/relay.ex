@@ -130,11 +130,13 @@ defmodule ExMoQ.Relay do
             name: nil
 
   @typedoc """
-  Why the relay did not start: options failed validation, it exited with the
-  given status, or did not become ready within the given milliseconds.
+  Why the relay did not start: options failed validation, no binary was found
+  under the given name (see `find_binary/1`), it exited with the given status,
+  or did not become ready within the given milliseconds.
   """
   @type start_error ::
           {:validation_failed, String.t()}
+          | {:binary_not_found, name :: Path.t()}
           | {:exit_status, non_neg_integer()}
           | {:not_ready, timeout_ms :: non_neg_integer()}
 
@@ -166,28 +168,27 @@ defmodule ExMoQ.Relay do
     end
   end
 
-  @spec validate(t()) :: {:ok, Options.t()} | {:error, {:validation_failed, String.t()}}
+  @spec validate(t()) ::
+          {:ok, Options.t()}
+          | {:error, {:validation_failed, String.t()} | {:binary_not_found, Path.t()}}
   defp validate(%__MODULE__{} = relay) do
     with {:ok, options} <- Options.validate(relay),
          {:ok, path} <- resolve_binary(options.binary) do
       {:ok, %{options | binary: path}}
     else
-      {:error, reason} -> {:error, {:validation_failed, reason}}
+      {:error, message} when is_binary(message) -> {:error, {:validation_failed, message}}
+      {:error, _reason} = error -> error
     end
   end
 
-  @spec resolve_binary(relay_binary()) :: {:ok, Path.t()} | {:error, String.t()}
+  @spec resolve_binary(relay_binary()) ::
+          {:ok, Path.t()} | {:error, {:binary_not_found, Path.t()}}
   defp resolve_binary(binary) do
     name = binary_name(binary)
 
     case System.find_executable(name) do
-      nil ->
-        {:error,
-         "no moq-relay binary found: #{inspect(name)} is not an executable; " <>
-           "see ExMoQ.Relay.find_binary/1"}
-
-      path ->
-        {:ok, path}
+      nil -> {:error, {:binary_not_found, name}}
+      path -> {:ok, path}
     end
   end
 
@@ -201,13 +202,17 @@ defmodule ExMoQ.Relay do
 
   @doc """
   Finds the relay binary: `binary` if given, else `$MOQ_RELAY`, else
-  `moq-relay` on `$PATH`. Returns `nil` if not found.
+  `moq-relay`. A bare name is looked up on `$PATH`; a path is expanded
+  relative to the current directory. Returns `nil` if not found.
   """
   @spec find_binary(Path.t() | nil) :: Path.t() | nil
   def find_binary(binary \\ nil), do: System.find_executable(binary_name(binary))
 
   @spec binary_name(relay_binary()) :: Path.t()
-  defp binary_name(binary), do: binary || System.get_env("MOQ_RELAY") || "moq-relay"
+  defp binary_name(binary) do
+    name = binary || System.get_env("MOQ_RELAY") || "moq-relay"
+    if String.contains?(name, "/"), do: Path.expand(name), else: name
+  end
 
   @doc """
   The arguments the relay binary is run with.
@@ -232,9 +237,6 @@ defmodule ExMoQ.Relay do
   @impl true
   def handle_call(:info, _from, state), do: {:reply, state.info, state}
 
-  # The daemon is linked, so its exit reaches this process as an exit signal,
-  # except for a clean exit: MuonTrap maps status 0 to `:normal`, which a link
-  # does not propagate. The monitor is there for that one.
   @impl true
   def handle_info({:DOWN, monitor, :process, _daemon, :normal}, %{monitor: monitor} = state),
     do: {:stop, {:exit_status, 0}, %{state | daemon: nil}}

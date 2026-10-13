@@ -6,16 +6,18 @@ defmodule ExMoQ.RelayTest do
   alias ExMoQ.Relay
   alias ExMoQ.Relay.Info
 
+  # `exec`, so the signal that stops a fake relay reaches the process that
+  # would outlive it.
   @fake_silent """
   #!/bin/sh
-  sleep 60
+  exec sleep 60
   """
 
   # Prints where readiness is reported, and exits cleanly soon after.
   @fake_clean_exit """
   #!/bin/sh
   echo "$NOTIFY_SOCKET"
-  sleep 0.3
+  exec sleep 0.3
   """
 
   defp script!(dir, name, body) do
@@ -31,6 +33,12 @@ defmodule ExMoQ.RelayTest do
 
     {caller, ref} = spawn_monitor(fn -> Relay.start_link(options) end)
     assert_receive {:DOWN, ^ref, :process, ^caller, {:not_ready, 300}}, 1_000
+  end
+
+  @tag :tmp_dir
+  test "a binary given as a relative path is found", %{tmp_dir: dir} do
+    path = script!(dir, "relative", @fake_silent)
+    assert Relay.find_binary(Path.relative_to_cwd(path)) == path
   end
 
   @tag :tmp_dir
@@ -114,7 +122,7 @@ defmodule ExMoQ.RelayTest do
     end
 
     test "a relay that binds its listeners but cannot authenticate is not ready" do
-      options = %Relay{tcp: free_port(), auth: nil, output: nil}
+      options = %Relay{quic: nil, tcp: free_port(), auth: nil, output: nil}
       assert {:error, {:exit_status, 1}} = Relay.start(options)
 
       options = %Relay{options | auth: [subscribe: "**"]}

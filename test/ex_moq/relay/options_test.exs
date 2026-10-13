@@ -7,10 +7,8 @@ defmodule ExMoQ.Relay.OptionsTest do
   defp relay!(fields), do: struct!(Relay, [binary: "/bin/sh"] ++ fields)
 
   test "options that fail validation are rejected before the relay is started" do
-    assert {:error, {:validation_failed, message}} =
+    assert {:error, {:binary_not_found, "/nonexistent/moq-relay"}} =
              Relay.start(relay!(binary: "/nonexistent/moq-relay"))
-
-    assert message =~ ~r|no moq-relay binary found: "/nonexistent/moq-relay"|
 
     assert {:error, {:validation_failed, message}} = Relay.start(relay!(quic: nil, web: 8080))
     assert message =~ ~r/needs a :quic or a :tcp listener/
