@@ -51,10 +51,7 @@ defmodule ExMoQ.RelayTest do
   describe "a real moq-relay" do
     @describetag :integration
 
-    test "starts with every listener, reports a version, and stops" do
-      assert {:ok, version} = Relay.version()
-      assert version =~ ~r/^\d+\.\d+\.\d+/
-
+    test "starts with every listener and stops" do
       [quic, tcp, internal] = Enum.map(1..3, fn _n -> free_port() end)
 
       options = %Relay{

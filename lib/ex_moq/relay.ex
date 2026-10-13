@@ -210,27 +210,6 @@ defmodule ExMoQ.Relay do
   defp binary_name(binary), do: binary || System.get_env("MOQ_RELAY") || "moq-relay"
 
   @doc """
-  The relay binary's version, e.g. `"0.15.8"`.
-  """
-  @spec version(Path.t() | nil) ::
-          {:ok, String.t()}
-          | {:error,
-             :no_binary
-             | {:exit_status, integer(), output :: String.t()}
-             | {:unexpected_output, term()}}
-  def version(binary \\ nil) do
-    with path when is_binary(path) <- find_binary(binary) || {:error, :no_binary},
-         {out, 0} <- System.cmd(path, ["--version"], stderr_to_stdout: true),
-         ["moq-relay", version] <- out |> String.trim() |> String.split(" ", parts: 2) do
-      {:ok, version}
-    else
-      {:error, _reason} = error -> error
-      {out, status} when is_integer(status) -> {:error, {:exit_status, status, out}}
-      other -> {:error, {:unexpected_output, other}}
-    end
-  end
-
-  @doc """
   The arguments the relay binary is run with.
   Raises `ArgumentError` when options fail validation.
   """
