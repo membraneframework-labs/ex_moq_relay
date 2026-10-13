@@ -13,8 +13,7 @@ defmodule ExMoQ.Testing.Relay do
 
   @doc """
   The options of a test relay: TCP only, on a port free as they are built
-  (see `free_port/0`), with its output logged at `:debug`. `binary` is
-  resolved with `find_binary/1`.
+  (see `free_port/0`), with its output logged at `:debug`.
   """
   @spec options(Path.t() | nil) :: ExMoQ.Relay.t()
   def options(binary \\ nil) do
@@ -22,8 +21,7 @@ defmodule ExMoQ.Testing.Relay do
   end
 
   @doc """
-  A TCP port nothing listens on right now, for a relay to bind. Something
-  else may take it before the relay does, which is rare.
+  A TCP port nothing listens on right now, for a relay to bind.
   """
   @spec free_port() :: :inet.port_number()
   def free_port() do

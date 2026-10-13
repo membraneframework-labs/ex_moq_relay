@@ -5,18 +5,14 @@ defmodule ExMoQ.Relay do
 
   The struct holds the options of a relay to start (see `t:t/0`):
 
-      {:ok, relay} = ExMoQ.Relay.start_link(%ExMoQ.Relay{tcp: 4444})
-      ExMoQ.Relay.info(relay).tcp_url  #=> "tcp://127.0.0.1:4444"
+      {:ok, relay} = ExMoQ.Relay.start_link(%ExMoQ.Relay{quic: 4443})
+      ExMoQ.Relay.info(relay).quic_url  #=> "https://127.0.0.1:4443"
 
-  The process returned by `start_link/1` owns the relay: the relay stops with
-  it, and it exits with `{:exit_status, status}` when the relay exits on its
-  own, whatever the status. Under a supervisor, the `:restart` setting decides
-  what happens then:
+  The relay stops with the process `start_link/1` returns, and that process
+  exits with `{:exit_status, status}` when the relay exits on its own. Under
+  a supervisor:
 
       {ExMoQ.Relay, %ExMoQ.Relay{quic: 4443, web: 4443, name: MyApp.Relay}}
-
-  Starting returns once the relay's listeners are bound and it accepts
-  sessions. Where they are reached is in `info/1`.
   """
 
   use GenServer
@@ -135,7 +131,7 @@ defmodule ExMoQ.Relay do
 
   @typedoc """
   Why the relay did not start: options failed validation, it exited with the
-  given status, or it did not report readiness within the given milliseconds.
+  given status, or did not become ready within the given milliseconds.
   """
   @type start_error ::
           {:validation_failed, String.t()}
@@ -155,22 +151,43 @@ defmodule ExMoQ.Relay do
   @doc """
   Starts a relay linked to the caller and blocks until it is ready.
   """
-  @spec start_link(t()) :: {:ok, pid()} | {:error, start_error() | {:already_started, pid()}}
+  @spec start_link(t()) :: GenServer.on_start()
   def start_link(%__MODULE__{} = relay) do
-    with {:ok, options} <- Options.validate(relay) do
+    with {:ok, options} <- validate(relay) do
       GenServer.start_link(__MODULE__, options, name: options.name)
+    end
+  end
+
+  @doc "Starts a relay not linked to the caller; see `start_link/1`."
+  @spec start(t()) :: GenServer.on_start()
+  def start(%__MODULE__{} = relay) do
+    with {:ok, options} <- validate(relay) do
+      GenServer.start(__MODULE__, options, name: options.name)
+    end
+  end
+
+  @spec validate(t()) :: {:ok, Options.t()} | {:error, {:validation_failed, String.t()}}
+  defp validate(%__MODULE__{} = relay) do
+    with {:ok, options} <- Options.validate(relay),
+         {:ok, path} <- resolve_binary(options.binary) do
+      {:ok, %{options | binary: path}}
     else
       {:error, reason} -> {:error, {:validation_failed, reason}}
     end
   end
 
-  @doc "Starts a relay not linked to the caller; see `start_link/1`."
-  @spec start(t()) :: {:ok, pid()} | {:error, start_error() | {:already_started, pid()}}
-  def start(%__MODULE__{} = relay) do
-    with {:ok, options} <- Options.validate(relay) do
-      GenServer.start(__MODULE__, options, name: options.name)
-    else
-      {:error, reason} -> {:error, {:validation_failed, reason}}
+  @spec resolve_binary(relay_binary()) :: {:ok, Path.t()} | {:error, String.t()}
+  defp resolve_binary(binary) do
+    name = binary_name(binary)
+
+    case System.find_executable(name) do
+      nil ->
+        {:error,
+         "no moq-relay binary found: #{inspect(name)} is not an executable; " <>
+           "see ExMoQ.Relay.find_binary/1"}
+
+      path ->
+        {:ok, path}
     end
   end
 
@@ -184,12 +201,13 @@ defmodule ExMoQ.Relay do
 
   @doc """
   Finds the relay binary: `binary` if given, else `$MOQ_RELAY`, else
-  `moq-relay` on `$PATH`. Returns `nil` when that is not an executable.
+  `moq-relay` on `$PATH`. Returns `nil` if not found.
   """
   @spec find_binary(Path.t() | nil) :: Path.t() | nil
-  def find_binary(binary \\ nil) do
-    System.find_executable(binary || System.get_env("MOQ_RELAY") || "moq-relay")
-  end
+  def find_binary(binary \\ nil), do: System.find_executable(binary_name(binary))
+
+  @spec binary_name(relay_binary()) :: Path.t()
+  defp binary_name(binary), do: binary || System.get_env("MOQ_RELAY") || "moq-relay"
 
   @doc """
   The relay binary's version, e.g. `"0.15.8"`.
@@ -213,8 +231,8 @@ defmodule ExMoQ.Relay do
   end
 
   @doc """
-  The arguments the relay binary is run with. Raises `ArgumentError` when
-  options fail validation.
+  The arguments the relay binary is run with.
+  Raises `ArgumentError` when options fail validation.
   """
   @spec args(t()) :: [String.t()]
   def args(%__MODULE__{} = relay), do: relay |> Options.validate!() |> Args.args()

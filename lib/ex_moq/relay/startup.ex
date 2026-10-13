@@ -21,8 +21,8 @@ defmodule ExMoQ.Relay.Startup do
         "moq-relay-#{System.pid()}-#{System.unique_integer([:positive])}.sock"
       )
 
-    # A file left by a run that died while waiting; the name repeats for the
-    # same OS pid.
+    # A file left by a run that died while waiting;
+    # the name repeats for the same OS pid.
     File.rm(path)
     {:ok, socket} = :gen_udp.open(0, [:local, :binary, active: true, ifaddr: {:local, path}])
 
@@ -34,7 +34,7 @@ defmodule ExMoQ.Relay.Startup do
       env: [{"NOTIFY_SOCKET", path}, {"NO_COLOR", "1"}, {"RUST_LOG", nil}]
     ]
 
-    # The daemon's init fails only when the validated binary is gone, muontrap's
+    # The daemon's init fails only when the resolved binary is gone, muontrap's
     # own binary is missing, or the VM is out of file descriptors. Being linked,
     # that failure exits this process with its reason rather than returning
     # `{:error, _}`, which is as it should be: none of those are handled.
@@ -63,7 +63,6 @@ defmodule ExMoQ.Relay.Startup do
     result
   end
 
-  # Waits for `READY=1` until the deadline, or until the daemon exits.
   @spec await_ready(:gen_udp.socket(), reference(), integer()) ::
           :ok | {:error, :not_ready} | {:exit, term()}
   defp await_ready(socket, monitor, deadline) do

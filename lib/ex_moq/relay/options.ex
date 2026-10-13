@@ -17,7 +17,7 @@ defmodule ExMoQ.Relay.Options do
           output: Relay.output(),
           ready_timeout: Relay.ready_timeout(),
           name: Relay.name(),
-          binary: Path.t(),
+          binary: Relay.relay_binary(),
           quic: {:inet.port_number(), Relay.quic_opts()} | nil,
           tcp: listener(),
           web: listener(),
@@ -42,8 +42,7 @@ defmodule ExMoQ.Relay.Options do
 
   @spec validate(Relay.t()) :: {:ok, t()} | {:error, String.t()}
   def validate(%Relay{} = options) do
-    with {:ok, binary} <- binary(options.binary),
-         {:ok, output} <- output(options.output),
+    with {:ok, output} <- output(options.output),
          {:ok, log_level} <- log_level(options.log_level),
          {:ok, quic} <- listener(:quic, options.quic, tls_generate: "localhost"),
          {:ok, tcp} <- listener(:tcp, options.tcp, []),
@@ -53,7 +52,7 @@ defmodule ExMoQ.Relay.Options do
          :ok <- require_listener(quic, tcp) do
       {:ok,
        %__MODULE__{
-         binary: binary,
+         binary: options.binary,
          ip: options.ip,
          quic: quic,
          tcp: tcp,
@@ -74,14 +73,6 @@ defmodule ExMoQ.Relay.Options do
     case validate(options) do
       {:ok, options} -> options
       {:error, reason} -> raise ArgumentError, reason
-    end
-  end
-
-  @spec binary(Path.t() | nil) :: {:ok, Path.t()} | {:error, String.t()}
-  defp binary(binary) do
-    case Relay.find_binary(binary) do
-      path when is_binary(path) -> {:ok, path}
-      nil -> {:error, "no moq-relay binary found; see ExMoQ.Relay.find_binary/1"}
     end
   end
 

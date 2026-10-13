@@ -9,7 +9,7 @@ defmodule ExMoQ.Relay.OptionsTest do
     assert {:error, {:validation_failed, message}} =
              Relay.start(relay!(binary: "/nonexistent/moq-relay"))
 
-    assert message =~ ~r/no moq-relay binary/
+    assert message =~ ~r|no moq-relay binary found: "/nonexistent/moq-relay"|
 
     assert {:error, {:validation_failed, message}} = Relay.start(relay!(quic: nil, web: 8080))
     assert message =~ ~r/needs a :quic or a :tcp listener/
@@ -33,8 +33,11 @@ defmodule ExMoQ.Relay.OptionsTest do
   end
 
   describe "args/1" do
-    test "renders the listeners that are asked for" do
-      assert Relay.args(relay!(quic: 4443, tcp: 4444, internal: 9101)) == [
+    test "renders the listeners that are asked for, with or without the binary" do
+      relay = relay!(quic: 4443, tcp: 4444, internal: 9101)
+      assert Relay.args(%Relay{relay | binary: "/nonexistent/moq-relay"}) == Relay.args(relay)
+
+      assert Relay.args(relay) == [
                "--log-level",
                "warn",
                "--listen",
