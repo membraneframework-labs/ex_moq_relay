@@ -74,7 +74,7 @@ defmodule ExMoQ.RelayTest do
           assert {:error, {:exit_status, 1}} = Relay.start(%Relay{binary: binary})
         end)
 
-      assert log =~ "moq-relay: path \uFFFD"
+      assert log =~ "[info] moq-relay: path \uFFFD"
     end
 
     # `exec`, so the signal that stops a fake relay
@@ -97,21 +97,15 @@ defmodule ExMoQ.RelayTest do
       assert resolved == path
     end
 
-    @logging """
-    #!/bin/sh
-    echo hello
-    exit 1
-    """
-
-    test "has its output logged at the :output level by default", %{tmp_dir: dir} do
-      options = %Relay{binary: script!(dir, "logging", @logging)}
-
-      log = capture_log(fn -> assert {:error, {:exit_status, 1}} = Relay.start(options) end)
-      assert log =~ "[info] moq-relay: hello"
-    end
-
     test "has its output dropped with output: nil", %{tmp_dir: dir} do
-      options = %Relay{binary: script!(dir, "logging", @logging), output: nil}
+      binary =
+        script!(dir, "logging", """
+        #!/bin/sh
+        echo hello
+        exit 1
+        """)
+
+      options = %Relay{binary: binary, output: nil}
 
       log = capture_log(fn -> assert {:error, {:exit_status, 1}} = Relay.start(options) end)
       refute log =~ "hello"
@@ -127,7 +121,7 @@ defmodule ExMoQ.RelayTest do
       options = %Relay{
         quic: quic,
         tcp: tcp,
-        web: quic,
+        web: {quic, ip: {0, 0, 0, 0}},
         internal: internal,
         name: __MODULE__.Relay,
         output: nil
@@ -172,15 +166,6 @@ defmodule ExMoQ.RelayTest do
 
       start_supervised!({Relay, options})
       refute_receive {:line, _line}, 500
-    end
-
-    test "binds a listener to an :ip of its own" do
-      web = free_port()
-      options = %Relay{quic: nil, tcp: free_port(), web: {web, ip: {0, 0, 0, 0}}, output: nil}
-
-      info = Relay.info(start_supervised!({Relay, options}))
-      assert info.web_url == "http://127.0.0.1:#{web}"
-      assert {200, _body} = get(info.web_url <> "/health")
     end
 
     test "a relay that binds its listeners but cannot authenticate is not ready" do

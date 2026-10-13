@@ -11,10 +11,7 @@ defmodule ExMoQ.Testing.Relay do
       stop_supervised!(:relay)
   """
 
-  @doc """
-  The options of a test relay: TCP only, on a port free as they are built
-  (see `free_port/0`), with its output logged at `:debug`.
-  """
+  @doc "Options for a test relay: TCP only, on a port that is free as they are built."
   @spec options(Path.t() | nil) :: ExMoQ.Relay.t()
   def options(binary \\ nil) do
     %ExMoQ.Relay{binary: binary, tcp: free_port(), quic: nil, log_level: :info, output: :debug}

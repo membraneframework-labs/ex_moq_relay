@@ -53,16 +53,13 @@ defmodule ExMoQ.Relay do
   @type tcp :: listener()
 
   @typedoc """
-  The HTTP listener serving `/health`, `/certificate.sha256`, `/fetch` and
-  WebSocket: a port, `{port, opts}`, or `nil` (default). It may share its port
-  number with `:quic`.
+  The HTTP listener serving `moq-relay` [endpoints](https://doc.moq.dev/bin/relay/http.html):
+  a port, `{port, opts}`, or `nil` (default).
+  It may share its port number with `:quic`.
   """
   @type web :: listener()
 
-  @typedoc """
-  The HTTP listener serving `/health`, `/metrics` and `/sessions`: a port,
-  `{port, opts}`, or `nil` (default).
-  """
+  @typedoc "The HTTP listener for operators: a port, `{port, opts}`, or `nil` (default)."
   @type internal :: listener()
 
   @typedoc """
@@ -133,18 +130,14 @@ defmodule ExMoQ.Relay do
             ready_timeout: 15_000,
             name: nil
 
-  @typedoc """
-  Why the relay did not start: options failed validation, no binary was found
-  under the given name (see `find_binary/1`), it exited with the given status,
-  or did not become ready within the given milliseconds.
-  """
+  @typedoc "Why the relay did not start."
   @type start_error ::
           {:validation_failed, String.t()}
           | {:binary_not_found, name :: Path.t()}
           | {:exit_status, non_neg_integer()}
           | {:not_ready, timeout_ms :: non_neg_integer()}
 
-  @doc "A child spec for the relay, with its `:name` (or a reference) in the id."
+  @doc "A child spec for the relay; several may share a supervisor."
   @spec child_spec(t()) :: Supervisor.child_spec()
   def child_spec(%__MODULE__{} = relay) do
     %{
@@ -241,8 +234,7 @@ defmodule ExMoQ.Relay do
   @impl true
   def handle_call(:info, _from, state), do: {:reply, state.info, state}
 
-  # MuonTrap maps exit status 0 to :normal. Any other exit ends this process
-  # through the link before its DOWN could arrive.
+  # Need to map exit_status = 0 explicitly
   @impl true
   def handle_info({:DOWN, monitor, :process, _daemon, :normal}, %{monitor: monitor} = state),
     do: {:stop, {:exit_status, 0}, %{state | daemon: nil}}

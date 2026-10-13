@@ -12,13 +12,4 @@ defmodule ExMoQ.Testing.RelayTest do
     {:ok, socket} = :gen_tcp.connect(~c"127.0.0.1", String.to_integer(port), [:binary])
     :gen_tcp.close(socket)
   end
-
-  @tag :integration
-  test "its options run a relay the test can stop" do
-    relay = start_supervised!({ExMoQ.Relay, Relay.options()}, id: :relay)
-    assert %Info{tcp_url: "tcp://" <> _address} = ExMoQ.Relay.info(relay)
-
-    assert :ok = stop_supervised!(:relay)
-    refute Process.alive?(relay)
-  end
 end

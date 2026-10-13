@@ -33,8 +33,6 @@ defmodule ExMoQ.Relay.Startup do
       case options.output do
         nil -> fn _line -> :ok end
         fun when is_function(fun, 1) -> fun
-        # Replaces invalid bytes as MuonTrap's own logger would: a partial line
-        # it cuts at 256 bytes can split a character.
         level -> fn line -> Logger.log(level, "moq-relay: " <> String.replace_invalid(line)) end
       end
 
@@ -46,10 +44,6 @@ defmodule ExMoQ.Relay.Startup do
       env: [{"NOTIFY_SOCKET", path}, {"NO_COLOR", "1"}, {"RUST_LOG", nil}]
     ]
 
-    # The daemon's init fails only when the resolved binary is gone, muontrap's
-    # own binary is missing, or the VM is out of file descriptors. Being linked,
-    # that failure exits this process with its reason rather than returning
-    # `{:error, _}`, which is as it should be: none of those are handled.
     {:ok, daemon} = MuonTrap.Daemon.start_link(options.binary, Args.args(options), daemon_opts)
     monitor = Process.monitor(daemon)
 
@@ -79,8 +73,7 @@ defmodule ExMoQ.Relay.Startup do
           do: :ok,
           else: await_ready(socket, monitor, deadline)
 
-      # MuonTrap maps exit status 0 to :normal. Any other exit ends this
-      # process through the link before its DOWN could arrive.
+      # exit_status = 0 has to be mapped explicitly
       {:DOWN, ^monitor, :process, _daemon, :normal} ->
         {:error, {:exit_status, 0}}
     after

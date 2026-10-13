@@ -8,11 +8,10 @@ defmodule ExMoQ.Relay.Info do
     * `:tcp_url` - `tcp://host:port` of the TCP listener.
     * `:web_url` - `http://host:port` of the web listener.
     * `:internal_url` - `http://host:port` of the internal listener.
-    * `:tls` - the QUIC listener's certificate: `:generated` when the relay
-      generated a self-signed one, which clients cannot verify and must pin
-      by fingerprint (served on the web listener at `/certificate.sha256`) or
-      skip verifying; `:provided` when it was passed in `:args`; `nil` without
-      a QUIC listener.
+    * `:tls` - the QUIC listener's certificate:
+      * `:generated` - self-signed by the relay,
+      * `:provided` - passed in `:args`,
+      * `nil` - QUIC disabled.
 
   A listener bound to an unspecified address (`0.0.0.0` or `::`) is reached
   on the loopback one.

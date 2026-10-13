@@ -70,8 +70,6 @@ defmodule ExMoQ.Relay.Args do
     end
   end
 
-  # The relay's levels are `tracing`'s; the ones `Logger` has above and between
-  # them map to the nearest more verbose one.
   @spec log_level(Relay.log_level()) :: String.t()
   defp log_level(level) when level in [:emergency, :alert, :critical, :error], do: "error"
   defp log_level(:warning), do: "warn"
