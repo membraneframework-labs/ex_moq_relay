@@ -2,30 +2,10 @@ defmodule ExMoQ.RelayTest do
   use ExUnit.Case
 
   import ExMoQ.Testing.Relay, only: [free_port: 0]
+  import ExUnit.CaptureLog
 
   alias ExMoQ.Relay
   alias ExMoQ.Relay.Info
-
-  # `exec`, so the signal that stops a fake relay reaches the process that
-  # would outlive it.
-  @fake_silent """
-  #!/bin/sh
-  exec sleep 60
-  """
-
-  # Prints where readiness is reported, and exits cleanly soon after.
-  @fake_clean_exit """
-  #!/bin/sh
-  echo "$NOTIFY_SOCKET"
-  exec sleep 0.3
-  """
-
-  # Prints where readiness is reported, and fails instead.
-  @fake_failed_start """
-  #!/bin/sh
-  echo "$NOTIFY_SOCKET"
-  exit 1
-  """
 
   defp script!(dir, name, body) do
     path = Path.join(dir, name)
@@ -34,46 +14,97 @@ defmodule ExMoQ.RelayTest do
     path
   end
 
-  @tag :tmp_dir
-  test "a relay that never reports readiness is stopped, and exits the caller", %{tmp_dir: dir} do
-    options = %Relay{binary: script!(dir, "silent", @fake_silent), ready_timeout: 300}
+  describe "a fake relay" do
+    @describetag :tmp_dir
 
-    {caller, ref} = spawn_monitor(fn -> Relay.start_link(options) end)
-    assert_receive {:DOWN, ^ref, :process, ^caller, {:not_ready, 300}}, 1_000
-  end
+    test "that exits before it is ready leaves no socket file", %{tmp_dir: dir} do
+      binary =
+        script!(dir, "failed", """
+        #!/bin/sh
+        echo "$NOTIFY_SOCKET"
+        exit 1
+        """)
 
-  @tag :tmp_dir
-  test "a binary given as a relative path is found", %{tmp_dir: dir} do
-    path = script!(dir, "relative", @fake_silent)
-    assert Relay.find_binary(Path.relative_to_cwd(path)) == path
-  end
+      me = self()
+      options = %Relay{binary: binary, output: &send(me, &1)}
 
-  @tag :tmp_dir
-  test "a relay that exits before it is ready leaves no socket file", %{tmp_dir: dir} do
-    me = self()
-    options = %Relay{binary: script!(dir, "failed", @fake_failed_start), output: &send(me, &1)}
+      assert {:error, {:exit_status, 1}} = Relay.start(options)
+      assert_receive path when is_binary(path)
+      path = String.trim(path)
 
-    assert {:error, {:exit_status, 1}} = Relay.start(options)
-    assert_receive path when is_binary(path)
-    path = String.trim(path)
-
-    assert String.ends_with?(path, ".sock")
-    assert eventually(fn -> not File.exists?(path) end)
-  end
-
-  @tag :tmp_dir
-  test "a relay that exits cleanly once ready stops with exit status 0", %{tmp_dir: dir} do
-    ready = fn path ->
-      {:ok, socket} = :gen_udp.open(0, [:local])
-      :ok = :gen_udp.send(socket, {:local, String.trim(path)}, 0, "READY=1")
-      :gen_udp.close(socket)
+      assert String.ends_with?(path, ".sock")
+      assert eventually(fn -> not File.exists?(path) end)
     end
 
-    options = %Relay{binary: script!(dir, "clean", @fake_clean_exit), output: ready}
-    {:ok, relay} = Relay.start(options)
-    ref = Process.monitor(relay)
+    test "that exits cleanly before it is ready fails with exit status 0", %{tmp_dir: dir} do
+      binary =
+        script!(dir, "clean_start", """
+        #!/bin/sh
+        exit 0
+        """)
 
-    assert_receive {:DOWN, ^ref, :process, ^relay, {:exit_status, 0}}, 1_000
+      assert {:error, {:exit_status, 0}} = Relay.start(%Relay{binary: binary, output: nil})
+    end
+
+    test "that exits cleanly once ready stops with exit status 0", %{tmp_dir: dir} do
+      binary =
+        script!(dir, "clean_exit", """
+        #!/bin/sh
+        echo "$NOTIFY_SOCKET"
+        exec sleep 0.3
+        """)
+
+      ready = fn path ->
+        {:ok, socket} = :gen_udp.open(0, [:local])
+        :ok = :gen_udp.send(socket, {:local, String.trim(path)}, 0, "READY=1")
+        :gen_udp.close(socket)
+      end
+
+      {:ok, relay} = Relay.start(%Relay{binary: binary, output: ready})
+      ref = Process.monitor(relay)
+
+      assert_receive {:DOWN, ^ref, :process, ^relay, {:exit_status, 0}}, 1_000
+    end
+
+    # `exec`, so the signal that stops a fake relay
+    # reaches the process that would outlive it.
+    @silent """
+    #!/bin/sh
+    exec sleep 60
+    """
+
+    test "that never reports readiness is stopped, and exits the caller", %{tmp_dir: dir} do
+      options = %Relay{binary: script!(dir, "silent", @silent), ready_timeout: 300}
+
+      {caller, ref} = spawn_monitor(fn -> Relay.start_link(options) end)
+      assert_receive {:DOWN, ^ref, :process, ^caller, {:not_ready, 300}}, 1_000
+    end
+
+    test "given as a relative path is found", %{tmp_dir: dir} do
+      path = script!(dir, "relative", @silent)
+      resolved = path |> Path.relative_to_cwd() |> Relay.find_binary()
+      assert resolved == path
+    end
+
+    @logging """
+    #!/bin/sh
+    echo hello
+    exit 1
+    """
+
+    test "has its output logged at the :output level by default", %{tmp_dir: dir} do
+      options = %Relay{binary: script!(dir, "logging", @logging)}
+
+      log = capture_log(fn -> assert {:error, {:exit_status, 1}} = Relay.start(options) end)
+      assert log =~ "[info] moq-relay: hello"
+    end
+
+    test "has its output dropped with output: nil", %{tmp_dir: dir} do
+      options = %Relay{binary: script!(dir, "logging", @logging), output: nil}
+
+      log = capture_log(fn -> assert {:error, {:exit_status, 1}} = Relay.start(options) end)
+      refute log =~ "hello"
+    end
   end
 
   describe "a real moq-relay" do
