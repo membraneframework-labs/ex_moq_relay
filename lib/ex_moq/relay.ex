@@ -9,9 +9,9 @@ defmodule ExMoQ.Relay do
       ExMoQ.Relay.info(relay).tcp_url  #=> "tcp://127.0.0.1:4444"
 
   The process returned by `start_link/1` owns the relay: the relay stops with
-  it, and it exits with `{:exit_status, status}` when the relay exits with a
-  non-zero status. Under a supervisor, the `:restart` setting decides what
-  happens then:
+  it, and it exits with `{:exit_status, status}` when the relay exits on its
+  own, whatever the status. Under a supervisor, the `:restart` setting decides
+  what happens then:
 
       {ExMoQ.Relay, %ExMoQ.Relay{quic: 4443, web: 4443, name: MyApp.Relay}}
 
@@ -235,7 +235,13 @@ defmodule ExMoQ.Relay do
   @impl true
   def handle_call(:info, _from, state), do: {:reply, state.info, state}
 
+  # The daemon is linked, so its exit reaches this process as an exit signal,
+  # except for a clean exit: MuonTrap maps status 0 to `:normal`, which a link
+  # does not propagate. The monitor is there for that one.
   @impl true
+  def handle_info({:DOWN, monitor, :process, _daemon, :normal}, %{monitor: monitor} = state),
+    do: {:stop, {:exit_status, 0}, %{state | daemon: nil}}
+
   def handle_info({:DOWN, monitor, :process, _daemon, reason}, %{monitor: monitor} = state),
     do: {:stop, reason, %{state | daemon: nil}}
 

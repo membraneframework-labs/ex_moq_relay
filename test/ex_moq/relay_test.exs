@@ -11,6 +11,13 @@ defmodule ExMoQ.RelayTest do
   sleep 60
   """
 
+  # Prints where readiness is reported, and exits cleanly soon after.
+  @fake_clean_exit """
+  #!/bin/sh
+  echo "$NOTIFY_SOCKET"
+  sleep 0.3
+  """
+
   defp script!(dir, name, body) do
     path = Path.join(dir, name)
     File.write!(path, body)
@@ -24,6 +31,21 @@ defmodule ExMoQ.RelayTest do
 
     {caller, ref} = spawn_monitor(fn -> Relay.start_link(options) end)
     assert_receive {:DOWN, ^ref, :process, ^caller, {:not_ready, 300}}, 1_000
+  end
+
+  @tag :tmp_dir
+  test "a relay that exits cleanly once ready stops with exit status 0", %{tmp_dir: dir} do
+    ready = fn path ->
+      {:ok, socket} = :gen_udp.open(0, [:local])
+      :ok = :gen_udp.send(socket, {:local, String.trim(path)}, 0, "READY=1")
+      :gen_udp.close(socket)
+    end
+
+    options = %Relay{binary: script!(dir, "clean", @fake_clean_exit), output: ready}
+    {:ok, relay} = Relay.start(options)
+    ref = Process.monitor(relay)
+
+    assert_receive {:DOWN, ^ref, :process, ^relay, {:exit_status, 0}}, 1_000
   end
 
   describe "a real moq-relay" do
