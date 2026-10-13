@@ -153,7 +153,7 @@ defmodule ExMoQ.Relay do
   @doc """
   Starts a relay linked to the caller and blocks until it is ready.
   """
-  @spec start_link(t()) :: GenServer.on_start()
+  @spec start_link(t()) :: {:ok, pid()} | {:error, start_error() | {:already_started, pid()}}
   def start_link(%__MODULE__{} = relay) do
     with {:ok, options} <- validate(relay) do
       GenServer.start_link(__MODULE__, options, name: options.name)
@@ -161,7 +161,7 @@ defmodule ExMoQ.Relay do
   end
 
   @doc "Starts a relay not linked to the caller; see `start_link/1`."
-  @spec start(t()) :: GenServer.on_start()
+  @spec start(t()) :: {:ok, pid()} | {:error, start_error() | {:already_started, pid()}}
   def start(%__MODULE__{} = relay) do
     with {:ok, options} <- validate(relay) do
       GenServer.start(__MODULE__, options, name: options.name)
