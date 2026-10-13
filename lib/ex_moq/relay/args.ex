@@ -6,8 +6,6 @@ defmodule ExMoQ.Relay.Args do
   alias ExMoQ.Relay
   alias ExMoQ.Relay.Options
 
-  @typep endpoint :: :quic | :tcp | :web | :internal
-
   @spec args(Options.t()) :: [String.t()]
   def args(%Options{} = options) do
     tls =
@@ -30,7 +28,7 @@ defmodule ExMoQ.Relay.Args do
     ])
   end
 
-  @spec listen_flag(Options.t(), String.t(), endpoint()) :: [String.t()]
+  @spec listen_flag(Options.t(), String.t(), Options.endpoint()) :: [String.t()]
   defp listen_flag(%Options{} = options, flag, key) do
     case listener(options, key) do
       nil -> []
@@ -38,12 +36,12 @@ defmodule ExMoQ.Relay.Args do
     end
   end
 
-  @spec listener(Options.t(), endpoint()) :: {:inet.port_number(), :inet.ip_address()} | nil
+  @spec listener(Options.t(), Options.endpoint()) ::
+          {:inet.port_number(), :inet.ip_address()} | nil
   def listener(%Options{} = options, key) do
     case Map.fetch!(options, key) do
       nil -> nil
       {port, opts} -> {port, Keyword.get(opts, :ip, options.ip)}
-      port -> {port, options.ip}
     end
   end
 

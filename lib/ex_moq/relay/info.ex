@@ -49,7 +49,7 @@ defmodule ExMoQ.Relay.Info do
   defp tls(nil), do: nil
   defp tls({_port, opts}), do: if(opts[:tls_generate], do: :generated, else: :provided)
 
-  @spec url(Options.t(), String.t(), :quic | :tcp | :web | :internal) :: String.t() | nil
+  @spec url(Options.t(), String.t(), Options.endpoint()) :: String.t() | nil
   defp url(options, scheme, key) do
     case Args.listener(options, key) do
       nil -> nil

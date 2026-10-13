@@ -1,26 +1,27 @@
 defmodule ExMoQ.Relay.Options do
   @moduledoc false
-  # Checked options of an `ExMoQ.Relay`. Built only by `validate/1`; the
-  # relay and its helpers take this struct and do not validate again.
 
   alias ExMoQ.Relay
 
   # moq-relay tracing levels
   @log_levels [:error, :warn, :info, :debug, :trace]
 
+  @type endpoint :: :quic | :tcp | :web | :internal
+  @type listener :: {:inet.port_number(), Relay.listener_opts()} | nil
+
   @type t :: %__MODULE__{
-          binary: Path.t(),
           ip: Relay.ip(),
-          quic: Relay.quic(),
-          tcp: Relay.tcp(),
-          web: Relay.web(),
-          internal: Relay.internal(),
           auth: Relay.auth(),
           log_level: Relay.log_level(),
           args: Relay.args(),
           output: Relay.output(),
           ready_timeout: Relay.ready_timeout(),
-          name: Relay.name()
+          name: Relay.name(),
+          binary: Path.t(),
+          quic: {:inet.port_number(), Relay.quic_opts()} | nil,
+          tcp: listener(),
+          web: listener(),
+          internal: listener()
         }
 
   @enforce_keys [
@@ -44,7 +45,7 @@ defmodule ExMoQ.Relay.Options do
     with {:ok, binary} <- binary(options.binary),
          {:ok, output} <- output(options.output),
          {:ok, log_level} <- log_level(options.log_level),
-         {:ok, quic} <- quic(options.quic),
+         {:ok, quic} <- listener(:quic, options.quic, tls_generate: "localhost"),
          {:ok, tcp} <- listener(:tcp, options.tcp, []),
          {:ok, web} <- listener(:web, options.web, []),
          {:ok, internal} <- listener(:internal, options.internal, []),
@@ -121,30 +122,26 @@ defmodule ExMoQ.Relay.Options do
     end
   end
 
-  @spec quic(term()) ::
-          {:ok, {:inet.port_number(), Relay.quic_opts()} | nil} | {:error, String.t()}
-  defp quic(nil), do: {:ok, nil}
-
-  defp quic({_port, _opts} = quic), do: listener(:quic, quic, tls_generate: "localhost")
-  defp quic(port), do: quic({port, []})
-
   @spec require_listener(term(), term()) :: :ok | {:error, String.t()}
   defp require_listener(nil, nil),
     do: {:error, "a relay needs a :quic or a :tcp listener, both are nil"}
 
   defp require_listener(_quic, _tcp), do: :ok
 
-  @spec listener(atom(), term(), keyword()) :: {:ok, term()} | {:error, String.t()}
-  defp listener(key, {port, opts}, defaults) when port != nil and is_list(opts) do
+  @spec listener(endpoint(), term(), keyword()) ::
+          {:ok, {:inet.port_number(), keyword()} | nil} | {:error, String.t()}
+  defp listener(_key, nil, _defaults), do: {:ok, nil}
+
+  defp listener(key, {port, opts}, defaults) when is_list(opts) do
     with {:ok, port} <- port(key, port),
          {:ok, opts} <- opts(opts, [:ip | defaults]) do
       {:ok, {port, opts}}
     end
   end
 
-  defp listener(key, port, _defaults), do: port(key, port)
+  defp listener(key, port, defaults), do: listener(key, {port, []}, defaults)
 
-  @spec opts(keyword(), keyword()) :: {:ok, keyword()} | {:error, String.t()}
+  @spec opts(keyword(), [atom() | {atom(), term()}]) :: {:ok, keyword()} | {:error, String.t()}
   defp opts(opts, allowed) do
     case Keyword.validate(opts, allowed) do
       {:ok, opts} -> {:ok, opts}
@@ -152,8 +149,7 @@ defmodule ExMoQ.Relay.Options do
     end
   end
 
-  @spec port(atom(), term()) :: {:ok, term()} | {:error, String.t()}
-  defp port(_key, nil), do: {:ok, nil}
+  @spec port(endpoint(), term()) :: {:ok, :inet.port_number()} | {:error, String.t()}
   defp port(_key, port) when port in 1..65_535, do: {:ok, port}
 
   defp port(key, other) do
