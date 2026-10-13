@@ -3,6 +3,7 @@ defmodule ExMoQ.Relay.OptionsTest do
 
   alias ExMoQ.Relay
 
+  @spec relay!(Keyword.t()) :: Relay.t()
   defp relay!(fields), do: struct!(Relay, [binary: "/bin/sh"] ++ fields)
 
   test "options that fail validation are rejected before the relay is started" do
@@ -34,8 +35,8 @@ defmodule ExMoQ.Relay.OptionsTest do
 
   describe "args/1" do
     test "renders the listeners that are asked for, with or without the binary" do
-      relay = relay!(quic: 4443, tcp: 4444, internal: 9101)
-      assert Relay.args(%Relay{relay | binary: "/nonexistent/moq-relay"}) == Relay.args(relay)
+      %Relay{} = relay = relay!(quic: 4443, tcp: 4444, internal: 9101)
+      assert Relay.args(%{relay | binary: "/nonexistent/moq-relay"}) == Relay.args(relay)
 
       assert Relay.args(relay) == [
                "--log-level",
