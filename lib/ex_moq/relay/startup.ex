@@ -20,10 +20,26 @@ defmodule ExMoQ.Relay.Startup do
 
     {:ok, socket} = :gen_udp.open(0, [:local, :binary, active: true, ifaddr: {:local, path}])
 
+    {:ok, _pid} =
+      Task.start(fn ->
+        monitor = :erlang.monitor(:port, socket)
+
+        receive do
+          {:DOWN, ^monitor, :port, ^socket, _reason} -> File.rm(path)
+        end
+      end)
+
+    logger_fun =
+      case options.output do
+        nil -> fn _line -> :ok end
+        fun when is_function(fun, 1) -> fun
+        level -> fn line -> Logger.log(level, "moq-relay: " <> line) end
+      end
+
     daemon_opts = [
       stderr_to_stdout: true,
       exit_status_to_reason: &{:exit_status, &1},
-      logger_fun: &output(options, &1),
+      logger_fun: logger_fun,
       # A `RUST_LOG` in the environment would override `--log-level`.
       env: [{"NOTIFY_SOCKET", path}, {"NO_COLOR", "1"}, {"RUST_LOG", nil}]
     ]
@@ -53,7 +69,6 @@ defmodule ExMoQ.Relay.Startup do
       end
 
     :ok = :gen_udp.close(socket)
-    File.rm(path)
     result
   end
 
@@ -71,19 +86,6 @@ defmodule ExMoQ.Relay.Startup do
     after
       max(deadline - System.monotonic_time(:millisecond), 0) -> {:error, :not_ready}
     end
-  end
-
-  # Runs in the daemon's process, so the lines a relay prints as it exits are
-  # written out before the exit reaches the relay's process.
-  @spec output(Options.t(), String.t()) :: :ok
-  defp output(options, line) do
-    case options.output do
-      nil -> :ok
-      fun when is_function(fun, 1) -> fun.(line)
-      level -> Logger.log(level, "moq-relay: " <> line)
-    end
-
-    :ok
   end
 
   @spec stop_daemon(pid()) :: :ok

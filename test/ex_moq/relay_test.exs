@@ -20,6 +20,13 @@ defmodule ExMoQ.RelayTest do
   exec sleep 0.3
   """
 
+  # Prints where readiness is reported, and fails instead.
+  @fake_failed_start """
+  #!/bin/sh
+  echo "$NOTIFY_SOCKET"
+  exit 1
+  """
+
   defp script!(dir, name, body) do
     path = Path.join(dir, name)
     File.write!(path, body)
@@ -39,6 +46,19 @@ defmodule ExMoQ.RelayTest do
   test "a binary given as a relative path is found", %{tmp_dir: dir} do
     path = script!(dir, "relative", @fake_silent)
     assert Relay.find_binary(Path.relative_to_cwd(path)) == path
+  end
+
+  @tag :tmp_dir
+  test "a relay that exits before it is ready leaves no socket file", %{tmp_dir: dir} do
+    me = self()
+    options = %Relay{binary: script!(dir, "failed", @fake_failed_start), output: &send(me, &1)}
+
+    assert {:error, {:exit_status, 1}} = Relay.start(options)
+    assert_receive path when is_binary(path)
+    path = String.trim(path)
+
+    assert String.ends_with?(path, ".sock")
+    assert eventually(fn -> not File.exists?(path) end)
   end
 
   @tag :tmp_dir
@@ -127,6 +147,14 @@ defmodule ExMoQ.RelayTest do
 
       options = %Relay{options | auth: [subscribe: "**"]}
       assert %Info{} = Relay.info(start_supervised!({Relay, options}))
+    end
+  end
+
+  defp eventually(check, attempts \\ 50) do
+    cond do
+      check.() -> true
+      attempts == 0 -> false
+      true -> Process.sleep(10) && eventually(check, attempts - 1)
     end
   end
 
