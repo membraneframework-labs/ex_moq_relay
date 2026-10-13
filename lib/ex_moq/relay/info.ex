@@ -1,8 +1,7 @@
 defmodule ExMoQ.Relay.Info do
   @moduledoc """
   What a started relay reports, from `ExMoQ.Relay.info/1`: where its
-  listeners are reached, with the ports it bound for `:auto`. A listener
-  that is off is `nil`.
+  listeners are reached. A listener that is off is `nil`.
 
     * `:quic_url` - `https://host:port` of the QUIC listener; append the
       path yourself.
@@ -54,7 +53,7 @@ defmodule ExMoQ.Relay.Info do
   defp url(options, scheme, key) do
     case Args.listener(options, key) do
       nil -> nil
-      {port, ip} when is_integer(port) -> "#{scheme}://#{Args.address(reachable(ip), port)}"
+      {port, ip} -> "#{scheme}://#{Args.address(reachable(ip), port)}"
     end
   end
 

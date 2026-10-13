@@ -11,11 +11,11 @@ defmodule ExMoQ.Relay.OptionsTest do
 
     assert message =~ ~r/no moq-relay binary/
 
-    assert {:error, {:validation_failed, message}} = Relay.start(relay!(quic: nil, web: :auto))
+    assert {:error, {:validation_failed, message}} = Relay.start(relay!(quic: nil, web: 8080))
     assert message =~ ~r/needs a :quic or a :tcp listener/
 
-    assert_raise ArgumentError, ~r/:internal must be a port or nil/, fn ->
-      Relay.child_spec(relay!(internal: :auto))
+    assert_raise ArgumentError, ~r/:tcp must be a port, \{port, opts\} or nil, got: :auto/, fn ->
+      Relay.child_spec(relay!(tcp: :auto))
     end
 
     assert {:error, {:validation_failed, message}} = Relay.start_link(relay!(log_level: "WARN"))
@@ -95,7 +95,7 @@ defmodule ExMoQ.Relay.OptionsTest do
         relay!(
           ip: {0, 0, 0, 0},
           quic: {4443, ip: {192, 0, 2, 1}},
-          tcp: {:auto, ip: {0, 0, 0, 0, 0, 0, 0, 1}},
+          tcp: {4444, ip: {0, 0, 0, 0, 0, 0, 0, 1}},
           web: {4443, ip: {127, 0, 0, 1}},
           internal: 9101
         )
@@ -106,7 +106,7 @@ defmodule ExMoQ.Relay.OptionsTest do
                "--listen",
                "192.0.2.1:4443",
                "--listen-tcp-bind",
-               "[::1]:0",
+               "[::1]:4444",
                "--web-http-listen",
                "127.0.0.1:4443",
                "--internal-listen",
@@ -176,19 +176,6 @@ defmodule ExMoQ.Relay.OptionsTest do
 
       assert Relay.args(relay!(quic: {4443, tls_generate: nil}, internal: nil)) ==
                ["--log-level", "warn", "--listen", "127.0.0.1:4443", "--auth-public", "**"]
-    end
-
-    test ":auto listeners bind port 0" do
-      assert Relay.args(relay!(quic: {:auto, tls_generate: nil}, tcp: :auto)) == [
-               "--log-level",
-               "warn",
-               "--listen",
-               "127.0.0.1:0",
-               "--listen-tcp-bind",
-               "127.0.0.1:0",
-               "--auth-public",
-               "**"
-             ]
     end
   end
 end

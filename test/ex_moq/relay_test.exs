@@ -1,6 +1,8 @@
 defmodule ExMoQ.RelayTest do
   use ExUnit.Case
 
+  import ExMoQ.Testing.Relay, only: [free_port: 0]
+
   alias ExMoQ.Relay
   alias ExMoQ.Relay.Info
 
@@ -14,13 +16,6 @@ defmodule ExMoQ.RelayTest do
     File.write!(path, body)
     File.chmod!(path, 0o755)
     path
-  end
-
-  defp free_port() do
-    {:ok, socket} = :gen_tcp.listen(0, ip: {127, 0, 0, 1})
-    {:ok, port} = :inet.port(socket)
-    :ok = :gen_tcp.close(socket)
-    port
   end
 
   @tag :tmp_dir
@@ -38,11 +33,12 @@ defmodule ExMoQ.RelayTest do
       assert {:ok, version} = Relay.version()
       assert version =~ ~r/^\d+\.\d+\.\d+/
 
-      internal = free_port()
+      [quic, tcp, internal] = Enum.map(1..3, fn _n -> free_port() end)
 
       options = %Relay{
-        tcp: :auto,
-        web: :auto,
+        quic: quic,
+        tcp: tcp,
+        web: quic,
         internal: internal,
         name: __MODULE__.Relay,
         output: nil
@@ -53,10 +49,10 @@ defmodule ExMoQ.RelayTest do
       assert Process.whereis(__MODULE__.Relay) == relay
 
       info = Relay.info(relay)
+      assert info.quic_url == "https://127.0.0.1:#{quic}"
+      assert info.tcp_url == "tcp://127.0.0.1:#{tcp}"
+      assert info.web_url == "http://127.0.0.1:#{quic}"
       assert info.internal_url == "http://127.0.0.1:#{internal}"
-      assert %URI{scheme: "https", port: quic} = URI.parse(info.quic_url)
-      assert %URI{scheme: "tcp", port: tcp} = URI.parse(info.tcp_url)
-      assert quic in 1..65_535
       assert info.tls == :generated
 
       assert {200, _body} = get(info.internal_url <> "/health")
@@ -72,44 +68,34 @@ defmodule ExMoQ.RelayTest do
       refute Process.alive?(relay)
     end
 
-    test "reports the ports it bound despite a RUST_LOG in the environment" do
+    test "logs at :log_level despite a RUST_LOG in the environment" do
       previous = System.get_env("RUST_LOG")
-      System.put_env("RUST_LOG", "error")
+      System.put_env("RUST_LOG", "trace")
 
       on_exit(fn ->
         if previous, do: System.put_env("RUST_LOG", previous), else: System.delete_env("RUST_LOG")
       end)
 
-      options = %Relay{quic: nil, tcp: :auto, log_level: :info, output: nil}
-      relay = start_supervised!({Relay, options})
-      assert %Info{tcp_url: "tcp://127.0.0.1:" <> _port} = Relay.info(relay)
-    end
-
-    test "binds a listener to an :ip of its own, and reports the port it bound there" do
       me = self()
 
       options =
-        %Relay{
-          quic: nil,
-          tcp: :auto,
-          web: {:auto, ip: {0, 0, 0, 0}},
-          log_level: :info,
-          output: &send(me, {:line, &1})
-        }
+        %Relay{quic: nil, tcp: free_port(), log_level: :error, output: &send(me, {:line, &1})}
+
+      start_supervised!({Relay, options})
+      refute_receive {:line, _line}, 500
+    end
+
+    test "binds a listener to an :ip of its own" do
+      web = free_port()
+      options = %Relay{quic: nil, tcp: free_port(), web: {web, ip: {0, 0, 0, 0}}, output: nil}
 
       info = Relay.info(start_supervised!({Relay, options}))
-      assert %URI{host: "127.0.0.1", port: tcp} = URI.parse(info.tcp_url)
-      assert %URI{host: "127.0.0.1", port: web} = URI.parse(info.web_url)
+      assert info.web_url == "http://127.0.0.1:#{web}"
       assert {200, _body} = get(info.web_url <> "/health")
-
-      {:messages, messages} = Process.info(self(), :messages)
-      lines = for {:line, line} <- messages, do: line
-      assert Enum.any?(lines, &(&1 =~ "listening (tcp) addr=127.0.0.1:#{tcp}"))
-      assert Enum.any?(lines, &(&1 =~ ~s(listening addr=0.0.0.0:#{web} kind="http")))
     end
 
     test "a relay that binds its listeners but cannot authenticate is not ready" do
-      options = %Relay{tcp: :auto, auth: nil, output: nil}
+      options = %Relay{tcp: free_port(), auth: nil, output: nil}
       assert {:error, {:exit_status, 1}} = Relay.start(options)
 
       options = %Relay{options | auth: [subscribe: "**"]}

@@ -39,13 +39,6 @@ defmodule ExMoQ.Relay.Options do
   ]
   defstruct @enforce_keys
 
-  @doc "Where a level ranks, from `:error` up; a string names one as a log line does."
-  @spec level_index(Relay.log_level() | String.t()) :: non_neg_integer() | nil
-  def level_index(level) when is_atom(level), do: Enum.find_index(@log_levels, &(&1 == level))
-
-  def level_index(level) when is_binary(level),
-    do: Enum.find_index(@log_levels, &(Atom.to_string(&1) == level))
-
   @spec validate(Relay.t()) :: {:ok, t()} | {:error, String.t()}
   def validate(%Relay{} = options) do
     with {:ok, binary} <- binary(options.binary),
@@ -54,7 +47,7 @@ defmodule ExMoQ.Relay.Options do
          {:ok, quic} <- quic(options.quic),
          {:ok, tcp} <- listener(:tcp, options.tcp, []),
          {:ok, web} <- listener(:web, options.web, []),
-         {:ok, internal} <- internal(options.internal),
+         {:ok, internal} <- listener(:internal, options.internal, []),
          {:ok, auth} <- auth(options.auth),
          :ok <- require_listener(quic, tcp) do
       {:ok,
@@ -129,22 +122,11 @@ defmodule ExMoQ.Relay.Options do
   end
 
   @spec quic(term()) ::
-          {:ok, {:auto | :inet.port_number(), Relay.quic_opts()} | nil}
-          | {:error, String.t()}
+          {:ok, {:inet.port_number(), Relay.quic_opts()} | nil} | {:error, String.t()}
   defp quic(nil), do: {:ok, nil}
 
   defp quic({_port, _opts} = quic), do: listener(:quic, quic, tls_generate: "localhost")
   defp quic(port), do: quic({port, []})
-
-  @spec internal(term()) :: {:ok, term()} | {:error, String.t()}
-  defp internal(internal) do
-    if internal == :auto or match?({:auto, _opts}, internal) do
-      {:error,
-       ":internal must be a port or nil: the relay does not report the port it binds for :auto"}
-    else
-      listener(:internal, internal, [])
-    end
-  end
 
   @spec require_listener(term(), term()) :: :ok | {:error, String.t()}
   defp require_listener(nil, nil),
@@ -171,10 +153,10 @@ defmodule ExMoQ.Relay.Options do
   end
 
   @spec port(atom(), term()) :: {:ok, term()} | {:error, String.t()}
-  defp port(_key, value) when value in [nil, :auto], do: {:ok, value}
+  defp port(_key, nil), do: {:ok, nil}
   defp port(_key, port) when port in 1..65_535, do: {:ok, port}
 
   defp port(key, other) do
-    {:error, "#{inspect(key)} must be :auto, a port, {port, opts} or nil, got: #{inspect(other)}"}
+    {:error, "#{inspect(key)} must be a port, {port, opts} or nil, got: #{inspect(other)}"}
   end
 end

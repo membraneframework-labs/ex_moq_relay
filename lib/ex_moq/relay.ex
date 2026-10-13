@@ -5,8 +5,8 @@ defmodule ExMoQ.Relay do
 
   The struct holds the options of a relay to start (see `t:t/0`):
 
-      {:ok, relay} = ExMoQ.Relay.start_link(%ExMoQ.Relay{tcp: :auto})
-      ExMoQ.Relay.info(relay).tcp_url  #=> "tcp://127.0.0.1:54321"
+      {:ok, relay} = ExMoQ.Relay.start_link(%ExMoQ.Relay{tcp: 4444})
+      ExMoQ.Relay.info(relay).tcp_url  #=> "tcp://127.0.0.1:4444"
 
   The process returned by `start_link/1` owns the relay: the relay stops with
   it, and it exits with `{:exit_status, status}` when the relay exits with a
@@ -16,7 +16,7 @@ defmodule ExMoQ.Relay do
       {ExMoQ.Relay, %ExMoQ.Relay{quic: 4443, web: 4443, name: MyApp.Relay}}
 
   Starting returns once the relay's listeners are bound and it accepts
-  sessions. The ports it picked for `:auto` are in `info/1`.
+  sessions. Where they are reached is in `info/1`.
   """
 
   use GenServer
@@ -33,11 +33,7 @@ defmodule ExMoQ.Relay do
   @type quic_opts :: [{:tls_generate, String.t() | nil} | {:ip, :inet.ip_address()}]
 
   @typedoc false
-  @type listener ::
-          :auto
-          | :inet.port_number()
-          | nil
-          | {:auto | :inet.port_number(), listener_opts()}
+  @type listener :: :inet.port_number() | nil | {:inet.port_number(), listener_opts()}
 
   @typedoc "Path to the relay; when `nil` (default), see `find_binary/1`."
   @type relay_binary :: Path.t() | nil
@@ -45,37 +41,33 @@ defmodule ExMoQ.Relay do
   @typedoc """
   Address the listeners bind to (default `{127, 0, 0, 1}`). A listener binds
   to one of its own as `{port, ip: ip}`, like
-  `web: {:auto, ip: {127, 0, 0, 1}}` next to a public `:quic`.
+  `web: {8080, ip: {127, 0, 0, 1}}` next to a public `:quic`.
   """
   @type ip :: :inet.ip_address()
 
   @typedoc """
-  The QUIC listener: `:auto` (default), a port, `{port, opts}`, or `nil`. Its
+  The QUIC listener: a port (default `4443`), `{port, opts}`, or `nil`. Its
   certificate is generated for `"localhost"`; `{port, tls_generate: host}`
   names another host, and `{port, tls_generate: nil}` generates none, for one
   passed in `:args`.
   """
-  @type quic ::
-          :auto
-          | :inet.port_number()
-          | nil
-          | {:auto | :inet.port_number(), quic_opts()}
+  @type quic :: :inet.port_number() | nil | {:inet.port_number(), quic_opts()}
 
-  @typedoc "A plaintext TCP listener: `:auto`, a port, `{port, opts}`, or `nil` (default)."
+  @typedoc "A plaintext TCP listener: a port, `{port, opts}`, or `nil` (default)."
   @type tcp :: listener()
 
   @typedoc """
   The HTTP listener serving `/health`, `/certificate.sha256`, `/fetch` and
-  WebSocket: `:auto`, a port, `{port, opts}`, or `nil` (default). It may share
-  its port number with `:quic`.
+  WebSocket: a port, `{port, opts}`, or `nil` (default). It may share its port
+  number with `:quic`.
   """
   @type web :: listener()
 
   @typedoc """
   The HTTP listener serving `/health`, `/metrics` and `/sessions`: a port,
-  `{port, opts}`, or `nil` (default). Not `:auto`.
+  `{port, opts}`, or `nil` (default).
   """
-  @type internal :: :inet.port_number() | {:inet.port_number(), listener_opts()} | nil
+  @type internal :: listener()
 
   @typedoc """
   How sessions are admitted (default `"**"`, everything): path patterns (a
@@ -130,7 +122,7 @@ defmodule ExMoQ.Relay do
 
   defstruct binary: nil,
             ip: {127, 0, 0, 1},
-            quic: :auto,
+            quic: 4443,
             tcp: nil,
             web: nil,
             internal: nil,
@@ -234,8 +226,8 @@ defmodule ExMoQ.Relay do
   end
 
   @doc """
-  The arguments the relay binary is run with; `:auto` ports are port 0.
-  Raises `ArgumentError` when options fail validation.
+  The arguments the relay binary is run with. Raises `ArgumentError` when
+  options fail validation.
   """
   @spec args(t()) :: [String.t()]
   def args(%__MODULE__{} = relay), do: relay |> Options.validate!() |> Args.args()
@@ -245,7 +237,7 @@ defmodule ExMoQ.Relay do
   @impl true
   def init(%Options{} = options) do
     case Startup.run(options) do
-      {:ok, %{daemon: daemon, monitor: monitor, options: options}} ->
+      {:ok, %{daemon: daemon, monitor: monitor}} ->
         {:ok, %{daemon: daemon, monitor: monitor, info: Info.new(options)}}
 
       {:error, reason} ->

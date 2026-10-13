@@ -23,10 +23,10 @@ or from a [release](https://github.com/moq-dev/moq/releases).
 ## Usage
 
 ```elixir
-{:ok, relay} = ExMoQ.Relay.start_link(%ExMoQ.Relay{tcp: :auto, web: :auto})
+{:ok, relay} = ExMoQ.Relay.start_link(%ExMoQ.Relay{tcp: 4444, web: 8080})
 %ExMoQ.Relay.Info{tcp_url: tcp_url, web_url: web_url} = ExMoQ.Relay.info(relay)
-tcp_url  #=> "tcp://127.0.0.1:54321"
-web_url  #=> "http://127.0.0.1:54322"
+tcp_url  #=> "tcp://127.0.0.1:4444"
+web_url  #=> "http://127.0.0.1:8080"
 ExMoQ.Relay.stop(relay)
 ```
 
