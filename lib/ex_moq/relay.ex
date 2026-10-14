@@ -35,7 +35,7 @@ defmodule ExMoQ.Relay do
       [endpoints](https://doc.moq.dev/bin/relay/http.html) (default `nil`).
       It may share its port number with `:quic`.
     * `:internal` - the HTTP listener for operators (default `nil`).
-    * `:auth` - how sessions are admitted (default `"**"`), see `t:auth/0`.
+    * `:auth` - see `t:auth/0`.
     * `:log_level` - the relay's log level (default `:warning`).
     * `:args` - extra command-line arguments (default `[]`).
     * `:output` - where the relay's output lines go (default `:info`), see
@@ -86,13 +86,14 @@ defmodule ExMoQ.Relay do
           | nil
 
   @typedoc """
-  How sessions are admitted: path patterns for anonymous access (`"**"` is
-  everything); `[subscribe: patterns, publish: patterns]` to grant the two
-  apart (`[subscribe: "**"]` lets anyone subscribe and no one publish);
-  `{:url, url}` for an auth server the relay POSTs to (`http://`,
-  `https://`, or `unix://`, see
-  [Authentication](https://doc.moq.dev/bin/relay/auth)); or `nil` for none,
-  leaving auth to `:args`.
+  How sessions are admitted.
+
+  * Path patterns for anonymous access (`"**"` is everything)
+  * `[subscribe: patterns, publish: patterns]` to grant the two
+  apart (`[subscribe: "**"]` lets anyone subscribe and no one publish)
+  * `{:url, url}` for an auth server the relay POSTs to (`http://`,
+  `https://`, or `unix://`, see [Authentication](https://doc.moq.dev/bin/relay/auth))
+  * `nil` for none, leaving auth to `:args`
   """
   @type auth ::
           patterns()
