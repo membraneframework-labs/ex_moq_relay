@@ -169,7 +169,10 @@ defmodule ExMoQ.Relay do
     end
   end
 
-  @doc "What the relay reports: where its listeners are reached."
+  @doc """
+  Endpoints through which the relay can be reached, see
+  [`%ExMoQ.Relay.Info{}`](`ExMoQ.Relay.Info.__struct__/0`).
+  """
   @spec info(GenServer.server()) :: Info.t()
   def info(relay), do: GenServer.call(relay, :info)
 
