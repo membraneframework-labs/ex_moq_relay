@@ -77,14 +77,10 @@ defmodule ExMoQ.Relay do
           | {:url, String.t()}
           | nil
 
-  @typedoc "A `Logger` level."
-  @type level :: :emergency | :alert | :critical | :error | :warning | :notice | :info | :debug
-
   @typedoc """
-  The relay's log level (default `:warning`). The relay has fewer levels:
-  `:emergency`, `:alert` and `:critical` run it at `error`, `:notice` at `info`.
+  The relay's log level (default `:warning`).
   """
-  @type log_level :: level()
+  @type log_level :: Logger.level()
 
   @typedoc "Extra command-line arguments (default `[]`)."
   @type args :: [String.t()]
@@ -93,7 +89,7 @@ defmodule ExMoQ.Relay do
   Where the relay's output lines go: a `Logger` level to log them at (default
   `:info`), a 1-arity function to call with each, or `nil` to drop them.
   """
-  @type output :: level() | (String.t() -> any()) | nil
+  @type output :: Logger.level() | (String.t() -> any()) | nil
 
   @typedoc "Milliseconds to wait for readiness (default `15_000`)."
   @type ready_timeout :: non_neg_integer()
