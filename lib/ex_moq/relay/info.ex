@@ -1,52 +1,61 @@
 defmodule ExMoQ.Relay.Info do
   @moduledoc """
   What a started relay reports, from `ExMoQ.Relay.info/1`: where its
-  listeners are reached. A listener that is off is `nil`.
+  listeners are reached. See [`%ExMoQ.Relay.Info{}`](`__struct__/0`).
+  """
 
-    * `:quic_url` - `https://host:port` of the QUIC listener; append the
-      path yourself.
-    * `:tcp_url` - `tcp://host:port` of the TCP listener.
-    * `:web_url` - `http://host:port` of the web listener.
-    * `:internal_url` - `http://host:port` of the internal listener.
-    * `:tls` - the QUIC listener's certificate:
-      * `:generated` - self-signed by the relay,
-      * `:provided` - passed in `:args`,
-      * `nil` - QUIC disabled.
+  alias ExMoQ.Relay.Args
+  alias ExMoQ.Relay.Options
+
+  @doc """
+  What a started relay reports.
+
+  It contains these fields, one per listener of `ExMoQ.Relay`, each `nil`
+  when that listener is off:
+
+    * `:quic` - `{url, tls}`: the `https://host:port` of the QUIC listener
+      (append the path yourself), and its certificate, `:generated` if
+      self-signed by the relay or `:provided` if passed in `:args`.
+    * `:tcp` - the `tcp://host:port` of the TCP listener.
+    * `:web` - the `http://host:port` of the web listener.
+    * `:internal` - the `http://host:port` of the internal listener.
 
   A listener bound to an unspecified address (`0.0.0.0` or `::`) is reached
   on the loopback one.
   """
-
-  alias ExMoQ.Relay
-  alias ExMoQ.Relay.Args
-  alias ExMoQ.Relay.Options
-
-  @type t :: %__MODULE__{
-          quic_url: String.t() | nil,
-          tcp_url: String.t() | nil,
-          web_url: String.t() | nil,
-          internal_url: String.t() | nil,
-          tls: :generated | :provided | nil
-        }
-
-  @enforce_keys [:quic_url, :tcp_url, :web_url, :internal_url, :tls]
+  @enforce_keys [:quic, :tcp, :web, :internal]
   defstruct @enforce_keys
+
+  @typedoc """
+  What a started relay reports.
+
+  See [`%ExMoQ.Relay.Info{}`](`__struct__/0`) for information about each field.
+  """
+  @type t :: %__MODULE__{
+          quic: {String.t(), :generated | :provided} | nil,
+          tcp: String.t() | nil,
+          web: String.t() | nil,
+          internal: String.t() | nil
+        }
 
   @doc false
   @spec new(Options.t()) :: t()
   def new(%Options{} = options) do
     %__MODULE__{
-      quic_url: url(options, "https", :quic),
-      tcp_url: url(options, "tcp", :tcp),
-      web_url: url(options, "http", :web),
-      internal_url: url(options, "http", :internal),
-      tls: tls(options.quic)
+      quic: quic(options),
+      tcp: url(options, "tcp", :tcp),
+      web: url(options, "http", :web),
+      internal: url(options, "http", :internal)
     }
   end
 
-  @spec tls(Relay.quic()) :: :generated | :provided | nil
-  defp tls(nil), do: nil
-  defp tls({_port, opts}), do: if(opts[:tls_generate], do: :generated, else: :provided)
+  @spec quic(Options.t()) :: {String.t(), :generated | :provided} | nil
+  defp quic(%Options{quic: nil}), do: nil
+
+  defp quic(%Options{quic: {_port, opts}} = options) do
+    tls = if opts[:tls_generate], do: :generated, else: :provided
+    {url(options, "https", :quic), tls}
+  end
 
   @spec url(Options.t(), String.t(), Options.endpoint()) :: String.t() | nil
   defp url(options, scheme, key) do

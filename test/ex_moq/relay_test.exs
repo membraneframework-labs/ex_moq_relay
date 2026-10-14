@@ -132,16 +132,15 @@ defmodule ExMoQ.RelayTest do
       assert Process.whereis(__MODULE__.Relay) == relay
 
       info = Relay.info(relay)
-      assert info.quic_url == "https://127.0.0.1:#{quic}"
-      assert info.tcp_url == "tcp://127.0.0.1:#{tcp}"
-      assert info.web_url == "http://127.0.0.1:#{quic}"
-      assert info.internal_url == "http://127.0.0.1:#{internal}"
-      assert info.tls == :generated
+      assert info.quic == {"https://127.0.0.1:#{quic}", :generated}
+      assert info.tcp == "tcp://127.0.0.1:#{tcp}"
+      assert info.web == "http://127.0.0.1:#{quic}"
+      assert info.internal == "http://127.0.0.1:#{internal}"
 
-      assert {200, _body} = get(info.internal_url <> "/health")
-      assert {200, _body} = get(info.web_url <> "/health")
+      assert {200, _body} = get(info.internal <> "/health")
+      assert {200, _body} = get(info.web <> "/health")
       # The SHA-256 of the generated certificate, hex-encoded.
-      assert {200, fingerprint} = get(info.web_url <> "/certificate.sha256")
+      assert {200, fingerprint} = get(info.web <> "/certificate.sha256")
       assert String.trim(fingerprint) =~ ~r/^[0-9a-f]{64}$/
 
       {:ok, socket} = :gen_tcp.connect(~c"127.0.0.1", tcp, [:binary])

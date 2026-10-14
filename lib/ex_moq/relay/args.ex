@@ -70,7 +70,7 @@ defmodule ExMoQ.Relay.Args do
     end
   end
 
-  @spec log_level(Relay.log_level()) :: String.t()
+  @spec log_level(Logger.level()) :: String.t()
   defp log_level(level) when level in [:emergency, :alert, :critical, :error], do: "error"
   defp log_level(:warning), do: "warn"
   defp log_level(level) when level in [:notice, :info], do: "info"

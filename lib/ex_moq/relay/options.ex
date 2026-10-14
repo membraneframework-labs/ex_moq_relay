@@ -7,17 +7,20 @@ defmodule ExMoQ.Relay.Options do
   @levels [:emergency, :alert, :critical, :error, :warning, :notice, :info, :debug]
 
   @type endpoint :: :quic | :tcp | :web | :internal
-  @type listener :: {:inet.port_number(), Relay.listener_opts()} | nil
+  @type listener :: {:inet.port_number(), [{:ip, :inet.ip_address()}]} | nil
+  @type quic_listener ::
+          {:inet.port_number(), [{:ip, :inet.ip_address()} | {:tls_generate, String.t() | nil}]}
+          | nil
 
   @type t :: %__MODULE__{
-          ip: Relay.ip(),
+          ip: :inet.ip_address(),
           auth: Relay.auth(),
-          log_level: Relay.log_level(),
-          args: Relay.args(),
+          log_level: Logger.level(),
+          args: [String.t()],
           output: Relay.output(),
-          ready_timeout: Relay.ready_timeout(),
-          name: Relay.name(),
-          quic: {:inet.port_number(), Relay.quic_opts()} | nil,
+          ready_timeout: non_neg_integer(),
+          name: GenServer.name() | nil,
+          quic: quic_listener(),
           tcp: listener(),
           web: listener(),
           internal: listener()
@@ -81,7 +84,7 @@ defmodule ExMoQ.Relay.Options do
     {:error, ":output must be a Logger level, a 1-arity function or nil, got: #{inspect(other)}"}
   end
 
-  @spec log_level(term()) :: {:ok, Relay.log_level()} | {:error, String.t()}
+  @spec log_level(term()) :: {:ok, Logger.level()} | {:error, String.t()}
   defp log_level(level) when level in @levels, do: {:ok, level}
 
   defp log_level(other) do
@@ -116,7 +119,7 @@ defmodule ExMoQ.Relay.Options do
   defp require_listener(_quic, _tcp), do: :ok
 
   @spec listener(endpoint(), term(), keyword()) ::
-          {:ok, {:inet.port_number(), keyword()} | nil} | {:error, String.t()}
+          {:ok, listener() | quic_listener()} | {:error, String.t()}
   defp listener(_key, nil, _defaults), do: {:ok, nil}
 
   defp listener(key, {port, opts}, defaults) when is_list(opts) do

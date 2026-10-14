@@ -2,12 +2,12 @@ defmodule ExMoQ.Testing.Relay do
   @moduledoc """
   A relay for ExUnit tests, reached over TCP and stopped with the test.
 
-      %ExMoQ.Relay.Info{tcp_url: url} = ExMoQ.Testing.Relay.start_supervised!()
+      %ExMoQ.Relay.Info{tcp: url} = ExMoQ.Testing.Relay.start_supervised!()
 
   To stop it before the test ends, start it with ExUnit directly:
 
       relay = start_supervised!({ExMoQ.Relay, ExMoQ.Testing.Relay.options()}, id: :relay)
-      ExMoQ.Relay.info(relay).tcp_url
+      ExMoQ.Relay.info(relay).tcp
       stop_supervised!(:relay)
   """
 

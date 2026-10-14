@@ -14,11 +14,10 @@ defmodule ExMoQ.Relay.InfoTest do
       })
 
     assert Info.new(options) == %Info{
-             quic_url: "https://127.0.0.1:4443",
-             tcp_url: nil,
-             web_url: nil,
-             internal_url: "http://[::1]:9101",
-             tls: :generated
+             quic: {"https://127.0.0.1:4443", :generated},
+             tcp: nil,
+             web: nil,
+             internal: "http://[::1]:9101"
            }
 
     options =
@@ -28,7 +27,7 @@ defmodule ExMoQ.Relay.InfoTest do
         tcp: 1
       })
 
-    assert %Info{quic_url: "https://192.0.2.1:4443", tcp_url: "tcp://[::1]:1", tls: :provided} =
+    assert %Info{quic: {"https://192.0.2.1:4443", :provided}, tcp: "tcp://[::1]:1"} =
              Info.new(options)
   end
 end
