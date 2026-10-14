@@ -17,7 +17,6 @@ defmodule ExMoQ.Relay.Options do
           output: Relay.output(),
           ready_timeout: Relay.ready_timeout(),
           name: Relay.name(),
-          binary: Relay.relay_binary(),
           quic: {:inet.port_number(), Relay.quic_opts()} | nil,
           tcp: listener(),
           web: listener(),
@@ -25,7 +24,6 @@ defmodule ExMoQ.Relay.Options do
         }
 
   @enforce_keys [
-    :binary,
     :ip,
     :quic,
     :tcp,
@@ -52,7 +50,6 @@ defmodule ExMoQ.Relay.Options do
          :ok <- require_listener(quic, tcp) do
       {:ok,
        %__MODULE__{
-         binary: options.binary,
          ip: options.ip,
          quic: quic,
          tcp: tcp,

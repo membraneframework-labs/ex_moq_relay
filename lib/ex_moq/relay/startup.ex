@@ -11,8 +11,8 @@ defmodule ExMoQ.Relay.Startup do
 
   @type t :: %{daemon: pid(), monitor: reference()}
 
-  @spec run(Options.t()) :: {:ok, t()} | {:error, term()}
-  def run(%Options{} = options) do
+  @spec run(Path.t(), Options.t()) :: {:ok, t()} | {:error, term()}
+  def run(binary, %Options{} = options) do
     deadline = System.monotonic_time(:millisecond) + options.ready_timeout
 
     path =
@@ -44,7 +44,7 @@ defmodule ExMoQ.Relay.Startup do
       env: [{"NOTIFY_SOCKET", path}, {"NO_COLOR", "1"}, {"RUST_LOG", nil}]
     ]
 
-    {:ok, daemon} = MuonTrap.Daemon.start_link(options.binary, Args.args(options), daemon_opts)
+    {:ok, daemon} = MuonTrap.Daemon.start_link(binary, Args.args(options), daemon_opts)
     monitor = Process.monitor(daemon)
 
     result =

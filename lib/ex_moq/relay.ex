@@ -148,26 +148,26 @@ defmodule ExMoQ.Relay do
   """
   @spec start_link(t()) :: {:ok, pid()} | {:error, start_error() | {:already_started, pid()}}
   def start_link(%__MODULE__{} = relay) do
-    with {:ok, options} <- validate(relay) do
-      GenServer.start_link(__MODULE__, options, name: options.name)
+    with {:ok, {_binary, options} = validated} <- validate(relay) do
+      GenServer.start_link(__MODULE__, validated, name: options.name)
     end
   end
 
   @doc "Starts a relay not linked to the caller; see `start_link/1`."
   @spec start(t()) :: {:ok, pid()} | {:error, start_error() | {:already_started, pid()}}
   def start(%__MODULE__{} = relay) do
-    with {:ok, options} <- validate(relay) do
-      GenServer.start(__MODULE__, options, name: options.name)
+    with {:ok, {_binary, options} = validated} <- validate(relay) do
+      GenServer.start(__MODULE__, validated, name: options.name)
     end
   end
 
   @spec validate(t()) ::
-          {:ok, Options.t()}
+          {:ok, {Path.t(), Options.t()}}
           | {:error, {:validation_failed, String.t()} | {:binary_not_found, Path.t()}}
   defp validate(%__MODULE__{} = relay) do
     with {:ok, options} <- Options.validate(relay),
-         {:ok, path} <- resolve_binary(options.binary) do
-      {:ok, %{options | binary: path}}
+         {:ok, binary} <- resolve_binary(relay.binary) do
+      {:ok, {binary, options}}
     else
       {:error, message} when is_binary(message) -> {:error, {:validation_failed, message}}
       {:error, _reason} = error -> error
@@ -217,8 +217,8 @@ defmodule ExMoQ.Relay do
   ## Server
 
   @impl true
-  def init(%Options{} = options) do
-    case Startup.run(options) do
+  def init({binary, %Options{} = options}) do
+    case Startup.run(binary, options) do
       {:ok, %{daemon: daemon, monitor: monitor}} ->
         {:ok, %{daemon: daemon, monitor: monitor, info: Info.new(options)}}
 

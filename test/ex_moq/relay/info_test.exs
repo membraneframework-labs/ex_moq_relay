@@ -5,15 +5,13 @@ defmodule ExMoQ.Relay.InfoTest do
   alias ExMoQ.Relay.Info
   alias ExMoQ.Relay.Options
 
-  defp options!(fields), do: Options.validate!(struct!(Relay, [binary: "/bin/sh"] ++ fields))
-
   test "a listener is reached on its address, loopback for an unspecified one; one that is off is nil" do
     options =
-      options!(
+      Options.validate!(%Relay{
         ip: {0, 0, 0, 0},
         quic: {4443, tls_generate: "localhost"},
         internal: {9101, ip: {0, 0, 0, 0, 0, 0, 0, 0}}
-      )
+      })
 
     assert Info.new(options) == %Info{
              quic_url: "https://127.0.0.1:4443",
@@ -24,11 +22,11 @@ defmodule ExMoQ.Relay.InfoTest do
            }
 
     options =
-      options!(
+      Options.validate!(%Relay{
         ip: {0, 0, 0, 0, 0, 0, 0, 0},
         quic: {4443, tls_generate: nil, ip: {192, 0, 2, 1}},
         tcp: 1
-      )
+      })
 
     assert %Info{quic_url: "https://192.0.2.1:4443", tcp_url: "tcp://[::1]:1", tls: :provided} =
              Info.new(options)
